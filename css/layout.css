@@ -1,0 +1,251 @@
+/* ================================================
+   LAYOUT.CSS — Estructura general RM App Base
+================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f0f2f5;
+  color: #1a1d23;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 40px;
+}
+
+#rm-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  min-height: 56px;
+  width: 100%;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 8px 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.16);
+}
+
+#rm-header .rm-header-inner,
+#rm-header .header-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#rm-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#rm-header .header-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  padding: 3px;
+}
+
+#rm-header .header-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#rm-header .header-app-name {
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#rm-header .header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+#rm-header .season-select {
+  height: 30px;
+  min-width: 118px;
+  padding: 0 28px 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.65);
+  background-color: #ffffff;
+  color: #1a1d23;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  cursor: pointer;
+  outline: none;
+}
+
+#rm-header .season-select:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.25);
+}
+
+#rm-header .btn-season-add {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.65);
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#rm-header .btn-season-add:hover { background: #f0f2f5; }
+
+#rm-header .btn-theme {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.65);
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+#rm-header .btn-theme:hover { background: #f0f2f5; }
+
+#rm-tabs {
+  position: sticky;
+  top: 56px;
+  z-index: 90;
+  height: 42px;
+  background: #ffffff;
+  border-bottom: 1px solid #dfe1e6;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  overflow-x: auto;
+}
+
+#rm-tabs .tab-btn {
+  height: 42px;
+  padding: 0 16px;
+  color: #5a6170;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#rm-tabs .tab-btn:hover  { color: #1a1d23; background: #f5f7fb; }
+#rm-tabs .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+
+#rm-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #dfe1e6;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+.firebase-notice {
+  max-width: 1200px;
+  margin: 0 auto 16px auto;
+}
+
+#rm-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 34px;
+  background: #2563eb;
+  color: rgba(255,255,255,.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: .03em;
+  z-index: 50;
+}
+
+.toast {
+  position: fixed;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  pointer-events: none;
+}
+.toast.hidden { display: none; }
+.toast.error   { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; }
+.toast.success { background: #14532d; border: 1px solid #22c55e; color: #86efac; }
+.toast.info    { background: #1e3a8a; border: 1px solid #3b82f6; color: #dbeafe; }
+
+.hidden { display: none !important; }
+
+@media (max-width: 640px) {
+  #rm-header { padding: 8px 12px; min-height: 52px; }
+  #rm-header .header-logo { width: 34px; height: 34px; }
+  #rm-header .header-app-name { font-size: 14px; max-width: 120px; }
+  #rm-header .header-right { gap: 6px; }
+  #rm-header .season-select { min-width: 92px; max-width: 100px; font-size: 11px; padding-left: 6px; }
+  #rm-header .btn-season-add,
+  #rm-header .btn-theme { width: 28px; height: 28px; }
+  #rm-tabs { top: 52px; padding: 0 8px; }
+  #rm-main { padding: 16px 12px; }
+}
