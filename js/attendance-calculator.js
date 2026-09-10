@@ -1,3 +1,4 @@
+
 // ================================================
 // ATTENDANCE-CALCULATOR.JS — Fuente única de verdad
 // Ningún otro módulo (app, PDF, Excel) recalcula % por su cuenta.
