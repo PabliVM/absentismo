@@ -1,3 +1,4 @@
+
 // ================================================
 // FIREBASE-SERVICE.JS — Operaciones Firestore
 // CDN ESM 10.7.1. Sin bundler. Compatible Vercel.
