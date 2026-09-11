@@ -500,6 +500,15 @@ function renderPanelFestivos(container) {
         <button class="btn btn-primary" type="submit">Añadir</button>
       </form>
     </div>
+    <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
+      <div class="card-title">Alta por lista</div>
+      <div class="card-body">Una línea por festivo: <code>Nombre,Curso,FechaInicio,FechaFin</code><br>
+        Curso: nombre exacto o <code>todos</code>. Fechas en <code>AAAA-MM-DD</code>. FechaFin vacío = un solo día.</div>
+      <div class="field-group" style="margin-top:8px">
+        <textarea class="textarea" id="fe-lista" rows="5" placeholder="Navidad,todos,2026-12-23,2027-01-07&#10;Puente,1º Bach,2026-10-12,"></textarea>
+      </div>
+      <button class="btn btn-primary" id="btn-alta-lista-festivos">Añadir lista</button>
+    </div>
     <div class="card card-lg">
       <div class="card-title">Festivos (${data.festivos.length})</div>
       ${data.festivos.length === 0 ? '<div class="card-body">Sin festivos todavía.</div>' : `
@@ -512,9 +521,43 @@ function renderPanelFestivos(container) {
   `;
 
   document.getElementById('form-festivo').addEventListener('submit', onSubmitFestivo);
+  document.getElementById('btn-alta-lista-festivos').addEventListener('click', onAltaListaFestivos);
   container.querySelectorAll('[data-del-festivo]').forEach(btn => {
     btn.addEventListener('click', () => onDeleteFestivo(btn.dataset.delFestivo));
   });
+}
+
+async function onAltaListaFestivos() {
+  const raw = document.getElementById('fe-lista').value.trim();
+  if (!raw) { showError('La lista está vacía.'); return; }
+  const cursosValidos = ['todos', ...cursosConocidos()];
+  const fechaRe = /^\d{4}-\d{2}-\d{2}$/;
+  const lineas = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const validos = [];
+  const invalidos = [];
+
+  for (const linea of lineas) {
+    const partes = linea.split(',').map(p => p.trim());
+    if (partes.length < 3) { invalidos.push(linea + '  (faltan campos)'); continue; }
+    const [nombre, curso, fechaInicio, fechaFinRaw] = partes;
+    const fechaFin = fechaFinRaw || fechaInicio;
+    if (!nombre) { invalidos.push(linea + '  (falta nombre)'); continue; }
+    if (!cursosValidos.includes(curso)) { invalidos.push(linea + '  (curso no reconocido)'); continue; }
+    if (!fechaRe.test(fechaInicio) || !fechaRe.test(fechaFin)) { invalidos.push(linea + '  (fecha inválida, usa AAAA-MM-DD)'); continue; }
+    if (fechaFin < fechaInicio) { invalidos.push(linea + '  (FechaFin anterior a FechaInicio)'); continue; }
+    validos.push({ nombre, curso, fechaInicio, fechaFin });
+  }
+
+  if (invalidos.length) {
+    showError(`Líneas inválidas:\n${invalidos.slice(0, 5).join('\n')}${invalidos.length > 5 ? `\n… y ${invalidos.length - 5} más` : ''}`, 8000);
+    return;
+  }
+
+  try {
+    for (const f of validos) await addDocument('festivos', f);
+    showSuccess(`${validos.length} festivo(s) añadido(s).`);
+    document.getElementById('fe-lista').value = '';
+  } catch (err) { showError('Error: ' + err.message); }
 }
 
 async function onSubmitFestivo(e) {
