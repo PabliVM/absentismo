@@ -105,20 +105,41 @@ async function onSubmitAusencia(e) {
 
 // ── PANEL: JUGADORES (alta unitaria + por lista, listado) ──
 
+let editingPlayerId = null;
+
 function renderPanelJugadores(container) {
   const teamOpts = TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
 
   const rows = data.players
     .slice()
     .sort((a, b) => TEAMS.indexOf(a.equipo) - TEAMS.indexOf(b.equipo) || a.nombre.localeCompare(b.nombre))
-    .map(p => `
-      <tr>
-        <td>${safeText(p.nombre)}</td>
-        <td>${safeText(p.equipo)}</td>
-        <td>${safeText(p.curso)}</td>
-        <td><button class="btn btn-ghost btn-sm" data-del-player="${p.id}">Eliminar</button></td>
-      </tr>
-    `).join('');
+    .map(p => {
+      if (p.id === editingPlayerId) {
+        const teamOptsEdit = TEAMS.map(t => `<option value="${t}" ${t === p.equipo ? 'selected' : ''}>${t}</option>`).join('');
+        return `
+          <tr data-edit-row="${p.id}">
+            <td><input class="input" id="edit-nombre-${p.id}" value="${safeText(p.nombre)}"></td>
+            <td><select class="select" id="edit-equipo-${p.id}">${teamOptsEdit}</select></td>
+            <td><input class="input" id="edit-curso-${p.id}" value="${safeText(p.curso)}"></td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-primary btn-sm" data-save-player="${p.id}">Guardar</button>
+              <button class="btn btn-ghost btn-sm" data-cancel-player="${p.id}">Cancelar</button>
+            </td>
+          </tr>
+        `;
+      }
+      return `
+        <tr>
+          <td>${safeText(p.nombre)}</td>
+          <td>${safeText(p.equipo)}</td>
+          <td>${safeText(p.curso)}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" data-edit-player="${p.id}">Editar</button>
+            <button class="btn btn-ghost btn-sm" data-del-player="${p.id}">Eliminar</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
   container.innerHTML = `
     ${firebaseNotice()}
@@ -157,6 +178,27 @@ function renderPanelJugadores(container) {
   container.querySelectorAll('[data-del-player]').forEach(btn => {
     btn.addEventListener('click', () => onDeletePlayer(btn.dataset.delPlayer));
   });
+  container.querySelectorAll('[data-edit-player]').forEach(btn => {
+    btn.addEventListener('click', () => { editingPlayerId = btn.dataset.editPlayer; renderPanelJugadores(container); });
+  });
+  container.querySelectorAll('[data-cancel-player]').forEach(btn => {
+    btn.addEventListener('click', () => { editingPlayerId = null; renderPanelJugadores(container); });
+  });
+  container.querySelectorAll('[data-save-player]').forEach(btn => {
+    btn.addEventListener('click', () => onSavePlayer(btn.dataset.savePlayer, container));
+  });
+}
+
+async function onSavePlayer(id, container) {
+  const nombre = document.getElementById(`edit-nombre-${id}`).value.trim();
+  const equipo = document.getElementById(`edit-equipo-${id}`).value;
+  const curso  = document.getElementById(`edit-curso-${id}`).value.trim();
+  if (!nombre || !curso) { showError('Nombre y curso son obligatorios.'); return; }
+  try {
+    await updateDocument('players', id, { nombre, equipo, curso });
+    showSuccess('Jugador actualizado.');
+    editingPlayerId = null;
+  } catch (err) { showError('Error: ' + err.message); }
 }
 
 async function onSubmitJugadorUnico(e) {
@@ -209,14 +251,35 @@ async function onDeletePlayer(id) {
 
 // ── PANEL: MOTIVOS (CRUD) ────────────────────────────
 
+let editingReasonId = null;
+
 function renderPanelMotivos(container) {
-  const rows = data.reasons.map(r => `
-    <tr>
-      <td><span class="motivo-pill" style="background:${safeText(r.color)}">${safeText(r.codigo)}</span></td>
-      <td>${safeText(r.nombre)}</td>
-      <td><button class="btn btn-ghost btn-sm" data-del-reason="${r.id}">Eliminar</button></td>
-    </tr>
-  `).join('');
+  const rows = data.reasons.map(r => {
+    if (r.id === editingReasonId) {
+      return `
+        <tr data-edit-row="${r.id}">
+          <td><input class="input" id="edit-codigo-${r.id}" maxlength="4" value="${safeText(r.codigo)}"></td>
+          <td><input class="input" id="edit-nombre-r-${r.id}" value="${safeText(r.nombre)}"></td>
+          <td><input type="color" id="edit-color-${r.id}" value="${safeText(r.color)}" style="height:32px;width:50px;padding:2px"></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-primary btn-sm" data-save-reason="${r.id}">Guardar</button>
+            <button class="btn btn-ghost btn-sm" data-cancel-reason="${r.id}">Cancelar</button>
+          </td>
+        </tr>
+      `;
+    }
+    return `
+      <tr>
+        <td><span class="motivo-pill" style="background:${safeText(r.color)}">${safeText(r.codigo)}</span></td>
+        <td>${safeText(r.nombre)}</td>
+        <td></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" data-edit-reason="${r.id}">Editar</button>
+          <button class="btn btn-ghost btn-sm" data-del-reason="${r.id}">Eliminar</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
 
   container.innerHTML = `
     ${firebaseNotice()}
@@ -234,7 +297,7 @@ function renderPanelMotivos(container) {
       <div class="card-title">Motivos (${data.reasons.length})</div>
       ${data.reasons.length === 0 ? '<div class="card-body">Sin motivos todavía.</div>' : `
         <table style="width:100%;font-size:12px;border-collapse:collapse">
-          <thead><tr style="text-align:left"><th>Código</th><th>Nombre</th><th></th></tr></thead>
+          <thead><tr style="text-align:left"><th>Código</th><th>Nombre</th><th></th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       `}
@@ -245,6 +308,27 @@ function renderPanelMotivos(container) {
   container.querySelectorAll('[data-del-reason]').forEach(btn => {
     btn.addEventListener('click', () => onDeleteReason(btn.dataset.delReason));
   });
+  container.querySelectorAll('[data-edit-reason]').forEach(btn => {
+    btn.addEventListener('click', () => { editingReasonId = btn.dataset.editReason; renderPanelMotivos(container); });
+  });
+  container.querySelectorAll('[data-cancel-reason]').forEach(btn => {
+    btn.addEventListener('click', () => { editingReasonId = null; renderPanelMotivos(container); });
+  });
+  container.querySelectorAll('[data-save-reason]').forEach(btn => {
+    btn.addEventListener('click', () => onSaveReason(btn.dataset.saveReason));
+  });
+}
+
+async function onSaveReason(id) {
+  const nombre = document.getElementById(`edit-nombre-r-${id}`).value.trim();
+  const codigo = document.getElementById(`edit-codigo-${id}`).value.trim().toUpperCase();
+  const color  = document.getElementById(`edit-color-${id}`).value;
+  if (!nombre || !codigo) { showError('Nombre y código son obligatorios.'); return; }
+  try {
+    await updateDocument('reasons', id, { nombre, codigo, color });
+    showSuccess('Motivo actualizado.');
+    editingReasonId = null;
+  } catch (err) { showError('Error: ' + err.message); }
 }
 
 async function onSubmitMotivo(e) {
@@ -358,6 +442,8 @@ function renderCalendarioGeneral(container) {
   bindMesSelector(container, () => renderPanelInformes(document.getElementById('rm-main')));
 }
 
+let editingAbsenceId = null;
+
 function renderFichaIndividual(container) {
   const opts = data.players.slice().sort((a, b) => a.nombre.localeCompare(b.nombre))
     .map(p => `<option value="${p.id}" ${p.id === jugadorSeleccionado ? 'selected' : ''}>${safeText(p.nombre)}</option>`).join('');
@@ -372,6 +458,7 @@ function renderFichaIndividual(container) {
 
   document.getElementById('ficha-jugador').addEventListener('change', e => {
     jugadorSeleccionado = e.target.value || null;
+    editingAbsenceId = null;
     renderFichaDetalle();
   });
 
@@ -392,9 +479,40 @@ function renderFichaIndividual(container) {
       return `<span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}: ${count}</span>`;
     }).join(' ');
 
+    const motivoOptsBase = data.reasons.map(r => `<option value="${r.id}">${safeText(r.nombre)} (${safeText(r.codigo)})</option>`).join('');
+
+    const ausenciasRows = absences.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map(a => {
+      if (a.id === editingAbsenceId) {
+        const motivoOptsEdit = data.reasons.map(r => `<option value="${r.id}" ${r.id === a.reasonId ? 'selected' : ''}>${safeText(r.nombre)} (${safeText(r.codigo)})</option>`).join('');
+        return `
+          <tr>
+            <td><input class="input" type="date" id="edit-au-fecha-${a.id}" value="${a.fecha}"></td>
+            <td><select class="select" id="edit-au-motivo-${a.id}">${motivoOptsEdit}</select></td>
+            <td><input class="input" id="edit-au-obs-${a.id}" value="${safeText(a.observaciones || '')}"></td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-primary btn-sm" data-save-absence="${a.id}">Guardar</button>
+              <button class="btn btn-ghost btn-sm" data-cancel-absence="${a.id}">Cancelar</button>
+            </td>
+          </tr>
+        `;
+      }
+      const r = rById[a.reasonId];
+      return `
+        <tr>
+          <td>${formatDate(a.fecha)}</td>
+          <td><span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}</span> ${r ? safeText(r.nombre) : ''}</td>
+          <td>${safeText(a.observaciones || '')}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" data-edit-absence="${a.id}">Editar</button>
+            <button class="btn btn-ghost btn-sm" data-del-absence="${a.id}">Eliminar</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
     detalle.innerHTML = `
       ${renderMesSelector()}
-      <div class="card card-lg">
+      <div class="card card-lg" style="margin-bottom:16px">
         <div class="card-title">${safeText(player.nombre)}</div>
         <div class="card-body">Equipo: <strong>${safeText(player.equipo)}</strong> · Curso: <strong>${safeText(player.curso)}</strong></div>
         <div class="divider"></div>
@@ -407,9 +525,51 @@ function renderFichaIndividual(container) {
         </div>
         ${motivoRows ? `<div class="label">Ausencias por motivo</div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${motivoRows}</div>` : ''}
       </div>
+      <div class="card card-lg">
+        <div class="card-title">Ausencias del mes (${absences.length})</div>
+        ${absences.length === 0 ? '<div class="card-body">Sin ausencias este mes.</div>' : `
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead><tr style="text-align:left"><th>Fecha</th><th>Motivo</th><th>Observaciones</th><th></th></tr></thead>
+            <tbody>${ausenciasRows}</tbody>
+          </table>
+        `}
+      </div>
     `;
     bindMesSelector(detalle, renderFichaDetalle);
+
+    detalle.querySelectorAll('[data-edit-absence]').forEach(btn => {
+      btn.addEventListener('click', () => { editingAbsenceId = btn.dataset.editAbsence; renderFichaDetalle(); });
+    });
+    detalle.querySelectorAll('[data-cancel-absence]').forEach(btn => {
+      btn.addEventListener('click', () => { editingAbsenceId = null; renderFichaDetalle(); });
+    });
+    detalle.querySelectorAll('[data-save-absence]').forEach(btn => {
+      btn.addEventListener('click', () => onSaveAbsence(btn.dataset.saveAbsence, renderFichaDetalle));
+    });
+    detalle.querySelectorAll('[data-del-absence]').forEach(btn => {
+      btn.addEventListener('click', () => onDeleteAbsence(btn.dataset.delAbsence));
+    });
   }
+}
+
+async function onSaveAbsence(id, refresh) {
+  const fecha    = document.getElementById(`edit-au-fecha-${id}`).value;
+  const reasonId = document.getElementById(`edit-au-motivo-${id}`).value;
+  const observaciones = document.getElementById(`edit-au-obs-${id}`).value.trim();
+  if (isWeekend(fecha)) { showError('Esa fecha es fin de semana, no es día lectivo.'); return; }
+  try {
+    await updateDocument('absences', id, { fecha, reasonId, observaciones });
+    showSuccess('Ausencia actualizada.');
+    editingAbsenceId = null;
+  } catch (err) { showError('Error: ' + err.message); }
+}
+
+async function onDeleteAbsence(id) {
+  if (!confirm('¿Eliminar esta ausencia?')) return;
+  try {
+    await deleteDocument('absences', id);
+    showSuccess('Ausencia eliminada.');
+  } catch (err) { showError('Error: ' + err.message); }
 }
 
 // ── RENDER MAIN / EVENTOS / BOOT ──────────────────────
