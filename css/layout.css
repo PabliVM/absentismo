@@ -235,6 +235,7 @@ body {
   font-weight: 600;
   max-width: 420px;
   text-align: center;
+  white-space: pre-line;
   box-shadow: 0 4px 16px rgba(0,0,0,.12);
   pointer-events: none;
 }
