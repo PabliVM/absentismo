@@ -2,7 +2,7 @@
 // APP.JS — Punto de entrada + paneles
 // ================================================
 
-import { initFirebase, watchAuth, login, logout, resetPassword, listenCollection, addDocument, updateDocument, deleteDocument }
+import { initFirebase, watchAuth, login, logout, resetPassword, listenCollection, addDocument, updateDocument, deleteDocument, saveDocument }
   from './firebase-service.js';
 import { isFirebaseUnconfigured } from './firebase-config.js';
 import { renderHeader }           from './render-header.js';
@@ -15,7 +15,7 @@ import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, hoyStr, toLoca
 
 // ── ESTADO EN MEMORIA DE COLECCIONES (cache local, sincronizado con Firestore) ──
 
-const data = { players: [], reasons: [], absences: [], festivos: [] };
+const data = { players: [], reasons: [], absences: [], festivos: [], temporadas: [] };
 let unsubscribers = [];
 
 function startListeners() {
@@ -29,6 +29,8 @@ function startListeners() {
       err => showError('Error cargando ausencias: ' + err.message)),
     listenCollection('festivos', rows => { data.festivos = rows; renderActivePanel(); },
       err => showError('Error cargando festivos: ' + err.message)),
+    listenCollection('temporadas', rows => { data.temporadas = rows; renderActivePanel(); },
+      err => showError('Error cargando temporadas: ' + err.message)),
   ];
 }
 
@@ -475,6 +477,7 @@ function cursosConocidos() {
 }
 
 function renderPanelFestivos(container) {
+  const temporadaActual = rangoTemporada(state.activeSeason);
   const cursoOpts = ['todos', ...cursosConocidos()].map(c =>
     `<option value="${safeText(c)}">${c === 'todos' ? 'Todos los cursos' : safeText(c)}</option>`).join('');
 
@@ -490,6 +493,16 @@ function renderPanelFestivos(container) {
   container.innerHTML = `
     ${firebaseNotice()}
     <div class="page-heading">Festivos y vacaciones</div>
+
+    <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
+      <div class="card-title">Inicio y fin del curso — temporada ${safeText(state.activeSeason)}</div>
+      <div class="card-body">Se usa en Informes → Ficha individual → "General (temporada)" para contar los días lectivos reales.</div>
+      <form id="form-temporada" style="margin-top:8px">
+        <div class="field-group"><label class="label">Inicio de curso</label><input class="input" type="date" id="te-inicio" value="${temporadaActual.inicio}" required></div>
+        <div class="field-group"><label class="label">Fin de curso</label><input class="input" type="date" id="te-fin" value="${temporadaActual.fin}" required></div>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </form>
+    </div>
     <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
       <div class="card-title">Nuevo festivo / periodo</div>
       <form id="form-festivo">
@@ -520,6 +533,7 @@ function renderPanelFestivos(container) {
     </div>
   `;
 
+  document.getElementById('form-temporada').addEventListener('submit', onSubmitTemporada);
   document.getElementById('form-festivo').addEventListener('submit', onSubmitFestivo);
   document.getElementById('btn-alta-lista-festivos').addEventListener('click', onAltaListaFestivos);
   container.querySelectorAll('[data-del-festivo]').forEach(btn => {
@@ -557,6 +571,17 @@ async function onAltaListaFestivos() {
     for (const f of validos) await addDocument('festivos', f);
     showSuccess(`${validos.length} festivo(s) añadido(s).`);
     document.getElementById('fe-lista').value = '';
+  } catch (err) { showError('Error: ' + err.message); }
+}
+
+async function onSubmitTemporada(e) {
+  e.preventDefault();
+  const fechaInicio = document.getElementById('te-inicio').value;
+  const fechaFin    = document.getElementById('te-fin').value;
+  if (fechaFin < fechaInicio) { showError('El fin no puede ser anterior al inicio.'); return; }
+  try {
+    await saveDocument('temporadas', state.activeSeason.replace('/', '-'), { fechaInicio, fechaFin });
+    showSuccess('Inicio/fin de curso guardado.');
   } catch (err) { showError('Error: ' + err.message); }
 }
 
@@ -598,10 +623,14 @@ function primerYUltimoDiaMes(anio, mes) {
 
 function renderPanelInformes(container) {
   container.innerHTML = `
-    <div class="card card-sm no-print" style="display:flex;gap:8px;margin-bottom:16px">
-      <button class="btn ${informesView === 'calendario' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="calendario">Calendario general</button>
-      <button class="btn ${informesView === 'individual' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="individual">Ficha individual</button>
-      <button class="btn ${informesView === 'festivos' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="festivos">Festivos</button>
+    <div class="card card-sm no-print" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn ${informesView === 'calendario' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="calendario">Calendario general</button>
+        <button class="btn ${informesView === 'individual' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="individual">Ficha individual</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--border-subtle)">
+        <button class="btn ${informesView === 'festivos' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="festivos">📅 Festivos e inicio/fin de curso</button>
+      </div>
     </div>
     <div id="informes-body"></div>
   `;
@@ -701,6 +730,8 @@ let fichaEquipoFiltro = 'todos';
 let fichaVista = 'mensual';
 
 function rangoTemporada(temporadaStr) {
+  const config = data.temporadas.find(t => t.id === temporadaStr.replace('/', '-'));
+  if (config) return { inicio: config.fechaInicio, fin: config.fechaFin };
   const [y1, y2] = temporadaStr.split('/').map(Number);
   return { inicio: `${y1}-09-01`, fin: `${y2}-08-31` };
 }
