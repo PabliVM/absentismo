@@ -530,7 +530,7 @@ function renderPanelFestivos(container) {
         </table>
       `}
     </div>
-    <div class="card card-lg">
+    <div class="card card-lg" style="max-width:480px">
       <div class="card-title">Festivos (${data.festivos.length})</div>
       ${data.festivos.length === 0 ? '<div class="card-body">Sin festivos todavía.</div>' : `
         <table style="width:100%;font-size:12px;border-collapse:collapse">
