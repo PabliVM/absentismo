@@ -262,6 +262,7 @@ body {
    IMPRESIÓN — Informe individual en PDF (Ctrl+P / Guardar como PDF)
    ================================================ */
 @media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   #rm-header, #rm-tabs, #rm-footer, #rm-toast, .no-print { display: none !important; }
   body, #app, #rm-main { background: #fff !important; padding: 0 !important; margin: 0 !important; }
   #rm-main { max-width: none; }
