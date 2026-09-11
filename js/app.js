@@ -522,15 +522,6 @@ function renderPanelFestivos(container) {
       </form>
     </div>
     <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
-      <div class="card-title">Alta por lista</div>
-      <div class="card-body">Una línea por festivo: <code>Nombre,Curso,FechaInicio,FechaFin</code><br>
-        Curso: nombre exacto o <code>todos</code>. Fechas en <code>AAAA-MM-DD</code>. FechaFin vacío = un solo día.</div>
-      <div class="field-group" style="margin-top:8px">
-        <textarea class="textarea" id="fe-lista" rows="5" placeholder="Navidad,todos,2026-12-23,2027-01-07&#10;Puente,1º Bach,2026-10-12,"></textarea>
-      </div>
-      <button class="btn btn-primary" id="btn-alta-lista-festivos">Añadir lista</button>
-    </div>
-    <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
       <div class="card-title">Inicios/fines de curso guardados (${data.temporadas.length})</div>
       ${data.temporadas.length === 0 ? '<div class="card-body">Sin configurar todavía.</div>' : `
         <table style="width:100%;font-size:12px;border-collapse:collapse">
@@ -552,7 +543,6 @@ function renderPanelFestivos(container) {
 
   document.getElementById('form-temporada').addEventListener('submit', onSubmitTemporada);
   document.getElementById('form-festivo').addEventListener('submit', onSubmitFestivo);
-  document.getElementById('btn-alta-lista-festivos').addEventListener('click', onAltaListaFestivos);
   container.querySelectorAll('[data-del-festivo]').forEach(btn => {
     btn.addEventListener('click', () => onDeleteFestivo(btn.dataset.delFestivo));
   });
