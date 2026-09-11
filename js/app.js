@@ -116,7 +116,7 @@ function renderPanelInicio(container) {
     const t = texto.trim().toLowerCase();
     const matches = jugadoresFiltrados.filter(p => p.nombre.toLowerCase().includes(t));
     if (matches.length === 0) { sugerencias.classList.add('hidden'); sugerencias.innerHTML = ''; return; }
-    sugerencias.innerHTML = matches.slice(0, 8).map(p =>
+    sugerencias.innerHTML = matches.map(p =>
       `<div class="autocomplete-item" data-player-id="${p.id}" data-player-nombre="${safeText(p.nombre)}">${safeText(p.nombre)} — ${safeText(p.equipo)}</div>`
     ).join('');
     sugerencias.classList.remove('hidden');
