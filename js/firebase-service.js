@@ -22,7 +22,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 import { firebaseConfig, isFirebaseUnconfigured } from './firebase-config.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+import { getAuth, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, onAuthStateChanged }
   from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 let _app  = null;
@@ -59,6 +59,11 @@ export async function login(email, password) {
 export async function logout() {
   if (!_auth) return;
   await signOut(_auth);
+}
+
+export async function resetPassword(email) {
+  if (!_auth) throw new Error('Firebase no inicializado.');
+  await sendPasswordResetEmail(_auth, email);
 }
 
 export function getDB() {
