@@ -1,4 +1,3 @@
-
 // ================================================
 // FIREBASE-SERVICE.JS — Operaciones Firestore
 // CDN ESM 10.7.1. Sin bundler. Compatible Vercel.
@@ -23,9 +22,12 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 import { firebaseConfig, isFirebaseUnconfigured } from './firebase-config.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-let _app = null;
-let _db  = null;
+let _app  = null;
+let _db   = null;
+let _auth = null;
 
 export function initFirebase() {
   if (isFirebaseUnconfigured()) {
@@ -33,12 +35,30 @@ export function initFirebase() {
     return false;
   }
   if (!_app) {
-    _app = initializeApp(firebaseConfig);
-    _db  = getFirestore(_app);
+    _app  = initializeApp(firebaseConfig);
+    _db   = getFirestore(_app);
+    _auth = getAuth(_app);
     window._fb = window._fb || {};
     window._fb.db = _db;
   }
   return true;
+}
+
+/** callback(user|null) — se llama en login, logout y al cargar si ya había sesión. */
+export function watchAuth(callback) {
+  if (!_auth) { callback(null); return () => {}; }
+  return onAuthStateChanged(_auth, user => callback(user));
+}
+
+export async function login(email, password) {
+  if (!_auth) throw new Error('Firebase no inicializado.');
+  const cred = await signInWithEmailAndPassword(_auth, email, password);
+  return cred.user;
+}
+
+export async function logout() {
+  if (!_auth) return;
+  await signOut(_auth);
 }
 
 export function getDB() {
