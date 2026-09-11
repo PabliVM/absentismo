@@ -1,4 +1,3 @@
-
 // ================================================
 // RENDER-HEADER.JS — Header corporativo RM
 // ================================================
@@ -17,7 +16,10 @@ export function renderHeader() {
         <div class="header-logo">
           <img src="${LOGO_PATH}" alt="RM" />
         </div>
-        <span class="header-app-name">${safeText(state.appName)}</span>
+        <div>
+          <div class="header-app-name">${safeText(state.appName)}</div>
+          <div class="header-subtitle">Real Madrid · Cantera</div>
+        </div>
       </div>
       <div class="header-right">
         <select class="season-select" id="season-select" title="Temporada activa">
@@ -28,16 +30,12 @@ export function renderHeader() {
           `).join('')}
         </select>
         <button class="btn-season-add" id="btn-season-add" type="button" title="Añadir temporada">＋</button>
-        <button class="btn-theme"      id="btn-theme"      type="button" title="Cambiar modo">
-          ${state.darkMode ? '☀️' : '🌙'}
-        </button>
       </div>
     </div>
   `;
 
   document.getElementById('season-select').addEventListener('change', onSeasonChange);
   document.getElementById('btn-season-add').addEventListener('click', onAddSeason);
-  document.getElementById('btn-theme').addEventListener('click', toggleTheme);
 }
 
 function onSeasonChange(e) {
@@ -55,11 +53,4 @@ function onAddSeason() {
   setState({ seasons: [...state.seasons, value], activeSeason: value });
   renderHeader();
   document.dispatchEvent(new CustomEvent('rm:season-changed', { detail: value }));
-}
-
-function toggleTheme() {
-  const isDark = document.body.classList.toggle('dark');
-  setState({ darkMode: isDark });
-  const btn = document.getElementById('btn-theme');
-  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
 }
