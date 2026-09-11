@@ -151,12 +151,40 @@
 
 .team-list-column { display: flex; flex-direction: column; gap: 12px; max-width: 640px; }
 .team-card-full { padding: 0; overflow: hidden; }
-.team-table { width: 100%; font-size: 13px; border-collapse: collapse; }
-.team-table th { padding: 8px 14px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
-.team-table td { padding: 9px 14px; border-top: 1px solid var(--border-subtle); }
+
+.player-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 64px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  font-size: 13px;
+  border-top: 1px solid var(--border-subtle);
+}
+.player-row-head {
+  font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em;
+  border-top: none; padding-bottom: 4px; padding-top: 8px;
+}
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.autocomplete-list {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 20; margin-top: 2px;
+  background: #fff; border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md); max-height: 220px; overflow-y: auto;
+}
+.autocomplete-item { padding: 8px 12px; font-size: 12px; cursor: pointer; }
+.autocomplete-item:hover { background: var(--bg-hover); }
 
 .icon-btn-subtle {
   border: none; background: transparent; cursor: pointer; font-size: 13px;
   opacity: .45; padding: 4px; border-radius: 4px; line-height: 1;
 }
 .icon-btn-subtle:hover { opacity: 1; background: var(--bg-hover); }
+
+/* ── CALENDARIO GENERAL — columna Jugador con ancho fijo en todos los equipos ── */
+.cal-table { border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+.cal-name-col {
+  width: 140px; min-width: 140px; max-width: 140px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 12px; padding-right: 6px;
+}
