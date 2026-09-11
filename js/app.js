@@ -707,7 +707,7 @@ function renderCalendarioGeneral(container) {
     const rows = jugadores.map(p => {
       const cells = fechas.map(f => {
         const abs = absByPlayerFecha[`${p.id}_${f}`];
-        const c = celdaCalendario(f, abs, rById, p.curso, data.festivos);
+        const c = celdaCalendario(f, abs, rById, p.curso, data.festivos, rangoTemporada(state.activeSeason, p.curso));
         const bg = c.tipo === 'no-lectivo' ? '#e5e7eb' : (c.tipo === 'ausencia' ? c.color : 'transparent');
         const fg = c.tipo === 'ausencia' ? '#fff' : '#374151';
         return `<td style="text-align:center;background:${bg};color:${fg};font-size:9px;font-weight:700">${c.texto}</td>`;
@@ -808,7 +808,7 @@ function renderFichaDetalle() {
       ? rangoTemporada(state.activeSeason, player.curso)
       : primerYUltimoDiaMes(anioActual, mesActual);
     const absences = data.absences.filter(a => a.playerId === player.id && a.fecha >= inicio && a.fecha <= fin);
-    const resumen = resumenJugador(inicio, fin, absences, player.curso, data.festivos);
+    const resumen = resumenJugador(inicio, fin, absences, player.curso, data.festivos, rangoTemporada(state.activeSeason, player.curso));
     const rById = reasonsById();
 
     const motivoRows = Object.entries(resumen.porMotivo).map(([reasonId, count]) => {
