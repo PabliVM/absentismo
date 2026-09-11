@@ -140,51 +140,54 @@ function renderListadoJugadores(container) {
     return;
   }
 
-  container.innerHTML = porEquipo.map(({ equipo, jugadores }) => {
-    const colapsado = equiposColapsados.has(equipo);
-    const rows = jugadores.map(p => {
-      if (p.id === editingPlayerId) {
-        const teamOptsEdit = TEAMS.map(t => `<option value="${t}" ${t === p.equipo ? 'selected' : ''}>${t}</option>`).join('');
-        return `
-          <tr data-edit-row="${p.id}">
-            <td><input class="input" id="edit-nombre-${p.id}" value="${safeText(p.nombre)}"></td>
-            <td><select class="select" id="edit-equipo-${p.id}">${teamOptsEdit}</select></td>
-            <td><input class="input" id="edit-curso-${p.id}" value="${safeText(p.curso)}"></td>
-            <td style="white-space:nowrap">
-              <button class="btn btn-primary btn-sm" data-save-player="${p.id}">Guardar</button>
-              <button class="btn btn-ghost btn-sm" data-cancel-player="${p.id}">Cancelar</button>
-            </td>
-          </tr>
-        `;
-      }
-      return `
-        <tr>
-          <td>${safeText(p.nombre)}</td>
-          <td>${safeText(p.equipo)}</td>
-          <td>${safeText(p.curso)}</td>
-          <td style="white-space:nowrap">
-            <button class="btn btn-ghost btn-icon" data-edit-player="${p.id}" title="Editar">✏️</button>
-            <button class="btn btn-ghost btn-icon" data-del-player="${p.id}" title="Eliminar">🗑️</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+  container.innerHTML = `
+    <div class="team-grid">
+      ${porEquipo.map(({ equipo, jugadores }) => {
+        const colapsado = equiposColapsados.has(equipo);
+        const rows = jugadores.map(p => {
+          if (p.id === editingPlayerId) {
+            const teamOptsEdit = TEAMS.map(t => `<option value="${t}" ${t === p.equipo ? 'selected' : ''}>${t}</option>`).join('');
+            return `
+              <tr data-edit-row="${p.id}">
+                <td><input class="input" id="edit-nombre-${p.id}" value="${safeText(p.nombre)}"></td>
+                <td><input class="input" id="edit-curso-${p.id}" value="${safeText(p.curso)}"></td>
+                <td><select class="select" id="edit-equipo-${p.id}" style="display:none">${teamOptsEdit}</select></td>
+                <td style="white-space:nowrap">
+                  <button class="btn btn-primary btn-sm" data-save-player="${p.id}">Guardar</button>
+                  <button class="btn btn-ghost btn-sm" data-cancel-player="${p.id}">Cancelar</button>
+                </td>
+              </tr>
+            `;
+          }
+          return `
+            <tr>
+              <td>${safeText(p.nombre)}</td>
+              <td>${safeText(p.curso)}</td>
+              <td style="white-space:nowrap;text-align:right">
+                <button class="btn btn-ghost btn-icon" data-edit-player="${p.id}" title="Editar">✏️</button>
+                <button class="btn btn-ghost btn-icon" data-del-player="${p.id}" title="Eliminar">🗑️</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
 
-    return `
-      <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
-        <button class="team-group-header" data-toggle-team="${safeText(equipo)}">
-          <span>${colapsado ? '▸' : '▾'} ${safeText(equipo)}</span>
-          <span class="badge badge-blue">${jugadores.length}</span>
-        </button>
-        ${colapsado ? '' : `
-          <table style="width:100%;font-size:12px;border-collapse:collapse">
-            <thead><tr style="text-align:left"><th>Nombre</th><th>Equipo</th><th>Curso</th><th></th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        `}
-      </div>
-    `;
-  }).join('');
+        return `
+          <div class="card team-card">
+            <button class="team-group-header" data-toggle-team="${safeText(equipo)}">
+              <span>${colapsado ? '▸' : '▾'} ${safeText(equipo)}</span>
+              <span class="badge badge-blue">${jugadores.length}</span>
+            </button>
+            ${colapsado ? '' : `
+              <table class="team-table">
+                <thead><tr style="text-align:left"><th>Nombre</th><th>Curso</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 
   container.querySelectorAll('[data-toggle-team]').forEach(btn => {
     btn.addEventListener('click', () => {
