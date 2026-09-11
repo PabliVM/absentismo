@@ -129,30 +129,34 @@ function renderPanelJugadores(container) {
   else renderAltaJugadores(body);
 }
 
+let filtroEquipo = 'todos';
+
 function renderListadoJugadores(container) {
-  const porEquipo = TEAMS.map(equipo => ({
-    equipo,
-    jugadores: data.players.filter(p => p.equipo === equipo).sort((a, b) => a.nombre.localeCompare(b.nombre)),
-  })).filter(g => g.jugadores.length > 0);
+  const porEquipo = TEAMS
+    .filter(equipo => filtroEquipo === 'todos' || filtroEquipo === equipo)
+    .map(equipo => ({
+      equipo,
+      jugadores: data.players.filter(p => p.equipo === equipo).sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    }))
+    .filter(g => g.jugadores.length > 0);
 
-  if (porEquipo.length === 0) {
-    container.innerHTML = '<div class="card card-lg">Sin jugadores todavía. Ve a "Añadir".</div>';
-    return;
-  }
+  const filtroPills = ['todos', ...TEAMS].map(eq => `
+    <button class="filter-pill ${filtroEquipo === eq ? 'active' : ''}" data-filtro-equipo="${safeText(eq)}">
+      ${eq === 'todos' ? 'Todos' : safeText(eq)}
+    </button>
+  `).join('');
 
-  container.innerHTML = `
-    <div class="team-grid">
-      ${porEquipo.map(({ equipo, jugadores }) => {
+  const listaHtml = porEquipo.length === 0
+    ? '<div class="card card-lg">Sin jugadores en este filtro.</div>'
+    : porEquipo.map(({ equipo, jugadores }) => {
         const colapsado = equiposColapsados.has(equipo);
         const rows = jugadores.map(p => {
           if (p.id === editingPlayerId) {
-            const teamOptsEdit = TEAMS.map(t => `<option value="${t}" ${t === p.equipo ? 'selected' : ''}>${t}</option>`).join('');
             return `
               <tr data-edit-row="${p.id}">
                 <td><input class="input" id="edit-nombre-${p.id}" value="${safeText(p.nombre)}"></td>
                 <td><input class="input" id="edit-curso-${p.id}" value="${safeText(p.curso)}"></td>
-                <td><select class="select" id="edit-equipo-${p.id}" style="display:none">${teamOptsEdit}</select></td>
-                <td style="white-space:nowrap">
+                <td style="white-space:nowrap;text-align:right">
                   <button class="btn btn-primary btn-sm" data-save-player="${p.id}">Guardar</button>
                   <button class="btn btn-ghost btn-sm" data-cancel-player="${p.id}">Cancelar</button>
                 </td>
@@ -162,17 +166,17 @@ function renderListadoJugadores(container) {
           return `
             <tr>
               <td>${safeText(p.nombre)}</td>
-              <td>${safeText(p.curso)}</td>
+              <td style="white-space:nowrap">${safeText(p.curso)}</td>
               <td style="white-space:nowrap;text-align:right">
-                <button class="btn btn-ghost btn-icon" data-edit-player="${p.id}" title="Editar">✏️</button>
-                <button class="btn btn-ghost btn-icon" data-del-player="${p.id}" title="Eliminar">🗑️</button>
+                <button class="icon-btn-subtle" data-edit-player="${p.id}" title="Editar">✏️</button>
+                <button class="icon-btn-subtle" data-del-player="${p.id}" title="Eliminar">🗑️</button>
               </td>
             </tr>
           `;
         }).join('');
 
         return `
-          <div class="card team-card">
+          <div class="card team-card-full">
             <button class="team-group-header" data-toggle-team="${safeText(equipo)}">
               <span>${colapsado ? '▸' : '▾'} ${safeText(equipo)}</span>
               <span class="badge badge-blue">${jugadores.length}</span>
@@ -185,9 +189,16 @@ function renderListadoJugadores(container) {
             `}
           </div>
         `;
-      }).join('')}
-    </div>
+      }).join('');
+
+  container.innerHTML = `
+    <div class="filter-pills">${filtroPills}</div>
+    <div class="team-list-column">${listaHtml}</div>
   `;
+
+  container.querySelectorAll('[data-filtro-equipo]').forEach(btn => {
+    btn.addEventListener('click', () => { filtroEquipo = btn.dataset.filtroEquipo; renderListadoJugadores(container); });
+  });
 
   container.querySelectorAll('[data-toggle-team]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -240,11 +251,10 @@ function renderAltaJugadores(container) {
 
 async function onSavePlayer(id, container, refresh) {
   const nombre = document.getElementById(`edit-nombre-${id}`).value.trim();
-  const equipo = document.getElementById(`edit-equipo-${id}`).value;
   const curso  = document.getElementById(`edit-curso-${id}`).value.trim();
   if (!nombre || !curso) { showError('Nombre y curso son obligatorios.'); return; }
   try {
-    await updateDocument('players', id, { nombre, equipo, curso });
+    await updateDocument('players', id, { nombre, curso });
     showSuccess('Jugador actualizado.');
     editingPlayerId = null;
   } catch (err) { showError('Error: ' + err.message); }
