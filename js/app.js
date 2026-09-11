@@ -814,10 +814,12 @@ function renderFichaDetalle() {
         <div class="divider"></div>
         <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
           <div style="flex:1;min-width:220px">
-            <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px">
+            <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">
               <div><div class="label">Días lectivos</div><div style="font-size:20px;font-weight:700">${resumen.previstas}</div></div>
               <div><div class="label">Asistencias</div><div style="font-size:20px;font-weight:700;color:#16a34a">${resumen.asistencias}</div></div>
               <div><div class="label">Ausencias</div><div style="font-size:20px;font-weight:700;color:#dc2626">${resumen.ausencias}</div></div>
+            </div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px">
               <div><div class="label">% Asistencia</div><div style="font-size:20px;font-weight:700">${resumen.pctAsistencia}%</div></div>
               <div><div class="label">% Absentismo</div><div style="font-size:20px;font-weight:700">${resumen.pctAbsentismo}%</div></div>
             </div>
@@ -825,12 +827,12 @@ function renderFichaDetalle() {
           </div>
           ${resumen.previstas > 0 ? `
             <div style="display:flex;gap:16px;flex-shrink:0">
-              <div style="width:140px;height:160px;text-align:center;position:relative">
+              <div style="width:220px;height:170px;text-align:center;position:relative">
                 <div class="label" style="margin-bottom:4px">Asistencia</div>
                 <canvas id="ficha-asistencia-chart"></canvas>
               </div>
               ${motivoRows ? `
-                <div style="width:150px;height:170px;text-align:center;position:relative">
+                <div style="width:220px;height:170px;text-align:center;position:relative">
                   <div class="label" style="margin-bottom:4px">Motivo</div>
                   <canvas id="ficha-motivo-chart"></canvas>
                 </div>
@@ -903,7 +905,7 @@ async function renderAsistenciaChart(resumen) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } },
+      plugins: { legend: { display: true, position: 'right', align: 'center', labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } } },
     },
   });
 }
@@ -928,7 +930,7 @@ async function renderMotivoChart(porMotivo, rById) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } },
+      plugins: { legend: { display: true, position: 'right', align: 'center', labels: { boxWidth: 10, font: { size: 9 }, padding: 8 } } },
     },
   });
 }
