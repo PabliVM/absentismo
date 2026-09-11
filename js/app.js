@@ -854,7 +854,7 @@ function renderFichaDetalle() {
         <button class="subtab-btn ${fichaVista === 'general' ? 'active' : ''}" data-ficha-vista="general">General (temporada)</button>
         <button class="btn btn-ghost btn-sm" id="btn-imprimir-ficha" style="margin-left:auto">🖨️ Imprimir / PDF</button>
       </div>
-      ${fichaVista === 'mensual' ? renderMesSelector() : `<div class="card-body no-print" style="margin-bottom:12px">Temporada ${safeText(state.activeSeason)} (01/09 — hoy)</div>`}
+      ${fichaVista === 'mensual' ? renderMesSelector() : `<div class="card-body no-print" style="margin-bottom:12px">Temporada ${safeText(state.activeSeason)} (${formatDate(inicio)} — hoy)</div>`}
       <div id="ficha-imprimible">
       <div class="card card-lg" style="margin-bottom:16px;max-width:760px">
         <div class="print-header" style="display:none">
