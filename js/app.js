@@ -11,11 +11,11 @@ import { renderFooter }           from './render-footer.js';
 import { TABS, TEAMS, MESES, LOGO_PATH } from './constants.js';
 import { state }                  from './state.js';
 import { safeText, showError, showSuccess, formatDate } from './utils.js';
-import { resumenJugador, celdaCalendario, rangoFechas, isWeekend } from './attendance-calculator.js';
+import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, hoyStr } from './attendance-calculator.js';
 
 // ── ESTADO EN MEMORIA DE COLECCIONES (cache local, sincronizado con Firestore) ──
 
-const data = { players: [], reasons: [], absences: [] };
+const data = { players: [], reasons: [], absences: [], festivos: [] };
 let unsubscribers = [];
 
 function startListeners() {
@@ -27,6 +27,8 @@ function startListeners() {
       err => showError('Error cargando motivos: ' + err.message)),
     listenCollection('absences', rows => { data.absences = rows; renderActivePanel(); },
       err => showError('Error cargando ausencias: ' + err.message)),
+    listenCollection('festivos', rows => { data.festivos = rows; renderActivePanel(); },
+      err => showError('Error cargando festivos: ' + err.message)),
   ];
 }
 
@@ -41,10 +43,18 @@ function firebaseNotice() {
 
 // ── PANEL: INICIO (alta de ausencia) ─────────────────
 
+let inicioEquipoFiltro = 'todos';
+
 function renderPanelInicio(container) {
-  const jugadorOpts = data.players
+  const jugadoresFiltrados = data.players
+    .filter(p => inicioEquipoFiltro === 'todos' || p.equipo === inicioEquipoFiltro)
     .slice()
-    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const equipoOpts = ['todos', ...TEAMS].map(eq =>
+    `<option value="${safeText(eq)}" ${eq === inicioEquipoFiltro ? 'selected' : ''}>${eq === 'todos' ? 'Todos los equipos' : safeText(eq)}</option>`).join('');
+
+  const jugadorOpts = jugadoresFiltrados
     .map(p => `<option value="${p.id}">${safeText(p.nombre)} — ${safeText(p.equipo)}</option>`).join('');
 
   const motivoOpts = data.reasons
@@ -59,8 +69,14 @@ function renderPanelInicio(container) {
       ${data.players.length > 0 && data.reasons.length > 0 ? `
         <form id="form-ausencia">
           <div class="field-group">
+            <label class="label">Filtrar por equipo</label>
+            <select class="select" id="au-equipo-filtro">${equipoOpts}</select>
+          </div>
+          <div class="field-group" style="position:relative">
             <label class="label">Jugador</label>
-            <select class="select" id="au-jugador" required>${jugadorOpts}</select>
+            <input class="input" id="au-jugador-buscar" placeholder="Escribe para buscar..." autocomplete="off" required>
+            <input type="hidden" id="au-jugador-id">
+            <div id="au-jugador-sugerencias" class="autocomplete-list hidden"></div>
           </div>
           <div class="field-group">
             <label class="label">Fecha</label>
@@ -81,23 +97,62 @@ function renderPanelInicio(container) {
   `;
 
   const form = document.getElementById('form-ausencia');
-  if (form) form.addEventListener('submit', onSubmitAusencia);
+  if (!form) return;
+
+  form.addEventListener('submit', onSubmitAusencia);
+
+  document.getElementById('au-equipo-filtro').addEventListener('change', e => {
+    inicioEquipoFiltro = e.target.value;
+    renderPanelInicio(container);
+  });
+
+  const inputBuscar = document.getElementById('au-jugador-buscar');
+  const inputId      = document.getElementById('au-jugador-id');
+  const sugerencias   = document.getElementById('au-jugador-sugerencias');
+
+  function mostrarSugerencias(texto) {
+    const t = texto.trim().toLowerCase();
+    const matches = jugadoresFiltrados.filter(p => p.nombre.toLowerCase().includes(t));
+    if (!t || matches.length === 0) { sugerencias.classList.add('hidden'); sugerencias.innerHTML = ''; return; }
+    sugerencias.innerHTML = matches.slice(0, 8).map(p =>
+      `<div class="autocomplete-item" data-player-id="${p.id}" data-player-nombre="${safeText(p.nombre)}">${safeText(p.nombre)} — ${safeText(p.equipo)}</div>`
+    ).join('');
+    sugerencias.classList.remove('hidden');
+    sugerencias.querySelectorAll('[data-player-id]').forEach(item => {
+      item.addEventListener('click', () => {
+        inputId.value = item.dataset.playerId;
+        inputBuscar.value = item.dataset.playerNombre;
+        sugerencias.classList.add('hidden');
+      });
+    });
+  }
+
+  inputBuscar.addEventListener('input', () => { inputId.value = ''; mostrarSugerencias(inputBuscar.value); });
+  inputBuscar.addEventListener('focus', () => mostrarSugerencias(inputBuscar.value));
+  document.addEventListener('click', e => {
+    if (!sugerencias.contains(e.target) && e.target !== inputBuscar) sugerencias.classList.add('hidden');
+  });
 }
 
 async function onSubmitAusencia(e) {
   e.preventDefault();
-  const playerId = document.getElementById('au-jugador').value;
+  const playerId = document.getElementById('au-jugador-id').value;
   const fecha    = document.getElementById('au-fecha').value;
   const reasonId = document.getElementById('au-motivo').value;
   const observaciones = document.getElementById('au-obs').value.trim();
 
+  if (!playerId) { showError('Selecciona un jugador de la lista de sugerencias.'); return; }
   if (isWeekend(fecha)) { showError('Esa fecha es fin de semana, no es día lectivo.'); return; }
+
+  const yaExiste = data.absences.some(a => a.playerId === playerId && a.fecha === fecha);
+  if (yaExiste) { showError('Este jugador ya tiene una ausencia registrada ese día.'); return; }
 
   try {
     await addDocument('absences', { playerId, fecha, reasonId, observaciones });
     showSuccess('Ausencia registrada.');
     e.target.reset();
     document.getElementById('au-fecha').value = new Date().toISOString().slice(0,10);
+    document.getElementById('au-jugador-id').value = '';
   } catch (err) {
     showError('Error al guardar: ' + err.message);
   }
@@ -413,6 +468,78 @@ async function onDeleteReason(id) {
   } catch (err) { showError('Error: ' + err.message); }
 }
 
+// ── PANEL: FESTIVOS (por curso) ──────────────────────
+
+function cursosConocidos() {
+  return [...new Set(data.players.map(p => p.curso).filter(Boolean))].sort();
+}
+
+function renderPanelFestivos(container) {
+  const cursoOpts = ['todos', ...cursosConocidos()].map(c =>
+    `<option value="${safeText(c)}">${c === 'todos' ? 'Todos los cursos' : safeText(c)}</option>`).join('');
+
+  const rows = data.festivos.slice().sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio)).map(f => `
+    <tr>
+      <td>${safeText(f.nombre)}</td>
+      <td>${f.curso === 'todos' ? 'Todos' : safeText(f.curso)}</td>
+      <td>${formatDate(f.fechaInicio)}${f.fechaFin && f.fechaFin !== f.fechaInicio ? ' — ' + formatDate(f.fechaFin) : ''}</td>
+      <td style="text-align:right"><button class="icon-btn-subtle" data-del-festivo="${f.id}" title="Eliminar">🗑️</button></td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    ${firebaseNotice()}
+    <div class="page-heading">Festivos y vacaciones</div>
+    <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
+      <div class="card-title">Nuevo festivo / periodo</div>
+      <form id="form-festivo">
+        <div class="field-group"><label class="label">Nombre</label><input class="input" id="fe-nombre" required placeholder="ej. Navidad"></div>
+        <div class="field-group"><label class="label">Curso</label><select class="select" id="fe-curso" required>${cursoOpts}</select></div>
+        <div class="field-group"><label class="label">Desde</label><input class="input" type="date" id="fe-inicio" required></div>
+        <div class="field-group"><label class="label">Hasta (vacío = solo ese día)</label><input class="input" type="date" id="fe-fin"></div>
+        <button class="btn btn-primary" type="submit">Añadir</button>
+      </form>
+    </div>
+    <div class="card card-lg">
+      <div class="card-title">Festivos (${data.festivos.length})</div>
+      ${data.festivos.length === 0 ? '<div class="card-body">Sin festivos todavía.</div>' : `
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="text-align:left"><th>Nombre</th><th>Curso</th><th>Fechas</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `}
+    </div>
+  `;
+
+  document.getElementById('form-festivo').addEventListener('submit', onSubmitFestivo);
+  container.querySelectorAll('[data-del-festivo]').forEach(btn => {
+    btn.addEventListener('click', () => onDeleteFestivo(btn.dataset.delFestivo));
+  });
+}
+
+async function onSubmitFestivo(e) {
+  e.preventDefault();
+  const nombre = document.getElementById('fe-nombre').value.trim();
+  const curso  = document.getElementById('fe-curso').value;
+  const fechaInicio = document.getElementById('fe-inicio').value;
+  const fechaFin    = document.getElementById('fe-fin').value || fechaInicio;
+  if (!nombre || !fechaInicio) { showError('Nombre y fecha de inicio son obligatorios.'); return; }
+  if (fechaFin < fechaInicio) { showError('La fecha "Hasta" no puede ser anterior a "Desde".'); return; }
+  try {
+    await addDocument('festivos', { nombre, curso, fechaInicio, fechaFin });
+    showSuccess('Festivo añadido.');
+    e.target.reset();
+  } catch (err) { showError('Error: ' + err.message); }
+}
+
+async function onDeleteFestivo(id) {
+  if (!confirm('¿Eliminar este festivo/periodo?')) return;
+  try {
+    await deleteDocument('festivos', id);
+    showSuccess('Festivo eliminado.');
+  } catch (err) { showError('Error: ' + err.message); }
+}
+
 // ── PANEL: INFORMES (calendario general + ficha individual) ──
 
 let informesView = 'calendario';
@@ -428,7 +555,7 @@ function primerYUltimoDiaMes(anio, mes) {
 
 function renderPanelInformes(container) {
   container.innerHTML = `
-    <div class="card card-sm" style="display:flex;gap:8px;margin-bottom:16px">
+    <div class="card card-sm no-print" style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn ${informesView === 'calendario' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="calendario">Calendario general</button>
       <button class="btn ${informesView === 'individual' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="individual">Ficha individual</button>
     </div>
@@ -463,57 +590,106 @@ function bindMesSelector(container, onChange) {
   });
 }
 
+const equiposColapsadosCalendario = new Set();
+
 function renderCalendarioGeneral(container) {
   const { inicio, fin } = primerYUltimoDiaMes(anioActual, mesActual);
   const fechas = rangoFechas(inicio, fin);
   const rById = reasonsById();
-
-  const jugadoresOrdenados = data.players.slice().sort((a, b) =>
-    TEAMS.indexOf(a.equipo) - TEAMS.indexOf(b.equipo) || a.nombre.localeCompare(b.nombre));
 
   const absByPlayerFecha = {};
   for (const a of data.absences) absByPlayerFecha[`${a.playerId}_${a.fecha}`] = a;
 
   const headerCells = fechas.map(f => `<th style="min-width:26px;font-weight:500">${f.slice(8,10)}</th>`).join('');
 
-  const rows = jugadoresOrdenados.map(p => {
-    const cells = fechas.map(f => {
-      const abs = absByPlayerFecha[`${p.id}_${f}`];
-      const c = celdaCalendario(f, abs, rById);
-      const bg = c.tipo === 'no-lectivo' ? '#e5e7eb' : (c.tipo === 'ausencia' ? c.color : 'transparent');
-      const fg = c.tipo === 'ausencia' ? '#fff' : '#374151';
-      return `<td style="text-align:center;background:${bg};color:${fg};font-size:9px;font-weight:700">${c.texto}</td>`;
+  const grupos = TEAMS
+    .map(equipo => ({ equipo, jugadores: data.players.filter(p => p.equipo === equipo).sort((a, b) => a.nombre.localeCompare(b.nombre)) }))
+    .filter(g => g.jugadores.length > 0);
+
+  const gruposHtml = grupos.map(({ equipo, jugadores }) => {
+    const colapsado = equiposColapsadosCalendario.has(equipo);
+    const rows = jugadores.map(p => {
+      const cells = fechas.map(f => {
+        const abs = absByPlayerFecha[`${p.id}_${f}`];
+        const c = celdaCalendario(f, abs, rById, p.curso, data.festivos);
+        const bg = c.tipo === 'no-lectivo' ? '#e5e7eb' : (c.tipo === 'ausencia' ? c.color : 'transparent');
+        const fg = c.tipo === 'ausencia' ? '#fff' : '#374151';
+        return `<td style="text-align:center;background:${bg};color:${fg};font-size:9px;font-weight:700">${c.texto}</td>`;
+      }).join('');
+      return `<tr><td style="white-space:nowrap;font-size:12px">${safeText(p.nombre)}</td>${cells}</tr>`;
     }).join('');
-    return `<tr><td style="white-space:nowrap;font-size:12px">${safeText(p.nombre)} <span style="color:#9ca3af">(${safeText(p.equipo)})</span></td>${cells}</tr>`;
+
+    return `
+      <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
+        <button class="team-group-header" data-toggle-team-cal="${safeText(equipo)}">
+          <span>${colapsado ? '▸' : '▾'} ${safeText(equipo)}</span>
+          <span class="badge badge-blue">${jugadores.length}</span>
+        </button>
+        ${colapsado ? '' : `
+          <div style="overflow-x:auto">
+            <table style="border-collapse:collapse;font-size:11px">
+              <thead><tr><th style="text-align:left">Jugador</th>${headerCells}</tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    `;
   }).join('');
 
   container.innerHTML = `
     ${renderMesSelector()}
-    ${data.players.length === 0 ? '<div class="card card-lg">Sin jugadores todavía.</div>' : `
-      <div class="card" style="overflow-x:auto">
-        <table style="border-collapse:collapse;font-size:11px">
-          <thead><tr><th style="text-align:left">Jugador</th>${headerCells}</tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    `}
+    ${grupos.length === 0 ? '<div class="card card-lg">Sin jugadores todavía.</div>' : gruposHtml}
   `;
   bindMesSelector(container, () => renderPanelInformes(document.getElementById('rm-main')));
+  container.querySelectorAll('[data-toggle-team-cal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const eq = btn.dataset.toggleTeamCal;
+      if (equiposColapsadosCalendario.has(eq)) equiposColapsadosCalendario.delete(eq); else equiposColapsadosCalendario.add(eq);
+      renderCalendarioGeneral(container);
+    });
+  });
 }
 
 let editingAbsenceId = null;
+let fichaEquipoFiltro = 'todos';
+let fichaVista = 'mensual';
+
+function rangoTemporada(temporadaStr) {
+  const [y1, y2] = temporadaStr.split('/').map(Number);
+  return { inicio: `${y1}-09-01`, fin: `${y2}-08-31` };
+}
 
 function renderFichaIndividual(container) {
-  const opts = data.players.slice().sort((a, b) => a.nombre.localeCompare(b.nombre))
+  const equipoOpts = ['todos', ...TEAMS].map(eq =>
+    `<option value="${safeText(eq)}" ${eq === fichaEquipoFiltro ? 'selected' : ''}>${eq === 'todos' ? 'Todos los equipos' : safeText(eq)}</option>`).join('');
+
+  const jugadoresFiltrados = data.players
+    .filter(p => fichaEquipoFiltro === 'todos' || p.equipo === fichaEquipoFiltro)
+    .slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const opts = jugadoresFiltrados
     .map(p => `<option value="${p.id}" ${p.id === jugadorSeleccionado ? 'selected' : ''}>${safeText(p.nombre)}</option>`).join('');
 
   container.innerHTML = `
-    <div class="field-group" style="max-width:320px;margin-bottom:12px">
-      <label class="label">Jugador</label>
-      <select class="select" id="ficha-jugador"><option value="">Selecciona...</option>${opts}</select>
+    <div class="no-print" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="field-group" style="max-width:220px;margin-bottom:0">
+        <label class="label">Equipo</label>
+        <select class="select" id="ficha-equipo-filtro">${equipoOpts}</select>
+      </div>
+      <div class="field-group" style="max-width:280px;margin-bottom:0">
+        <label class="label">Jugador</label>
+        <select class="select" id="ficha-jugador"><option value="">Selecciona...</option>${opts}</select>
+      </div>
     </div>
     <div id="ficha-detalle"></div>
   `;
+
+  document.getElementById('ficha-equipo-filtro').addEventListener('change', e => {
+    fichaEquipoFiltro = e.target.value;
+    jugadorSeleccionado = null;
+    renderFichaIndividual(container);
+  });
 
   document.getElementById('ficha-jugador').addEventListener('change', e => {
     jugadorSeleccionado = e.target.value || null;
@@ -523,14 +699,16 @@ function renderFichaIndividual(container) {
 
   renderFichaDetalle();
 
-  function renderFichaDetalle() {
+function renderFichaDetalle() {
     const detalle = document.getElementById('ficha-detalle');
     const player = data.players.find(p => p.id === jugadorSeleccionado);
     if (!player) { detalle.innerHTML = ''; return; }
 
-    const { inicio, fin } = primerYUltimoDiaMes(anioActual, mesActual);
+    const { inicio, fin } = fichaVista === 'general'
+      ? rangoTemporada(state.activeSeason)
+      : primerYUltimoDiaMes(anioActual, mesActual);
     const absences = data.absences.filter(a => a.playerId === player.id && a.fecha >= inicio && a.fecha <= fin);
-    const resumen = resumenJugador(inicio, fin, absences);
+    const resumen = resumenJugador(inicio, fin, absences, player.curso, data.festivos);
     const rById = reasonsById();
 
     const motivoRows = Object.entries(resumen.porMotivo).map(([reasonId, count]) => {
@@ -561,7 +739,7 @@ function renderFichaIndividual(container) {
           <td>${formatDate(a.fecha)}</td>
           <td><span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}</span> ${r ? safeText(r.nombre) : ''}</td>
           <td>${safeText(a.observaciones || '')}</td>
-          <td style="white-space:nowrap">
+          <td class="no-print" style="white-space:nowrap">
             <button class="btn btn-ghost btn-icon" data-edit-absence="${a.id}" title="Editar">✏️</button>
             <button class="btn btn-ghost btn-icon" data-del-absence="${a.id}" title="Eliminar">🗑️</button>
           </td>
@@ -570,8 +748,21 @@ function renderFichaIndividual(container) {
     }).join('');
 
     detalle.innerHTML = `
-      ${renderMesSelector()}
+      <div class="subtabs no-print" style="margin-bottom:12px">
+        <button class="subtab-btn ${fichaVista === 'mensual' ? 'active' : ''}" data-ficha-vista="mensual">Mensual</button>
+        <button class="subtab-btn ${fichaVista === 'general' ? 'active' : ''}" data-ficha-vista="general">General (temporada)</button>
+        <button class="btn btn-ghost btn-sm" id="btn-imprimir-ficha" style="margin-left:auto">🖨️ Imprimir / PDF</button>
+      </div>
+      ${fichaVista === 'mensual' ? renderMesSelector() : `<div class="card-body no-print" style="margin-bottom:12px">Temporada ${safeText(state.activeSeason)} (01/09 — hoy)</div>`}
+      <div id="ficha-imprimible">
       <div class="card card-lg" style="margin-bottom:16px">
+        <div class="print-header" style="display:none">
+          <img src="${LOGO_PATH}" alt="RM">
+          <div>
+            <div style="font-weight:800;font-size:16px">${safeText(player.nombre)}</div>
+            <div style="font-size:11px;color:#4b5563">Informe de asistencia — ${fichaVista === 'general' ? 'Temporada ' + safeText(state.activeSeason) : MESES[mesActual] + ' ' + anioActual}</div>
+          </div>
+        </div>
         <div class="card-title">${safeText(player.nombre)}</div>
         <div class="card-body">Equipo: <strong>${safeText(player.equipo)}</strong> · Curso: <strong>${safeText(player.curso)}</strong></div>
         <div class="divider"></div>
@@ -585,16 +776,21 @@ function renderFichaIndividual(container) {
         ${motivoRows ? `<div class="label">Ausencias por motivo</div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${motivoRows}</div>` : ''}
       </div>
       <div class="card card-lg">
-        <div class="card-title">Ausencias del mes (${absences.length})</div>
-        ${absences.length === 0 ? '<div class="card-body">Sin ausencias este mes.</div>' : `
+        <div class="card-title">Ausencias ${fichaVista === 'general' ? 'de la temporada' : 'del mes'} (${absences.length})</div>
+        ${absences.length === 0 ? '<div class="card-body">Sin ausencias en este periodo.</div>' : `
           <table style="width:100%;font-size:12px;border-collapse:collapse">
-            <thead><tr style="text-align:left"><th>Fecha</th><th>Motivo</th><th>Observaciones</th><th></th></tr></thead>
+            <thead><tr style="text-align:left"><th>Fecha</th><th>Motivo</th><th>Observaciones</th><th class="no-print"></th></tr></thead>
             <tbody>${ausenciasRows}</tbody>
           </table>
         `}
       </div>
+      </div>
     `;
-    bindMesSelector(detalle, renderFichaDetalle);
+    if (fichaVista === 'mensual') bindMesSelector(detalle, renderFichaDetalle);
+    detalle.querySelectorAll('[data-ficha-vista]').forEach(btn => {
+      btn.addEventListener('click', () => { fichaVista = btn.dataset.fichaVista; renderFichaDetalle(); });
+    });
+    document.getElementById('btn-imprimir-ficha').addEventListener('click', () => window.print());
 
     detalle.querySelectorAll('[data-edit-absence]').forEach(btn => {
       btn.addEventListener('click', () => { editingAbsenceId = btn.dataset.editAbsence; renderFichaDetalle(); });
@@ -616,6 +812,11 @@ async function onSaveAbsence(id, refresh) {
   const reasonId = document.getElementById(`edit-au-motivo-${id}`).value;
   const observaciones = document.getElementById(`edit-au-obs-${id}`).value.trim();
   if (isWeekend(fecha)) { showError('Esa fecha es fin de semana, no es día lectivo.'); return; }
+
+  const actual = data.absences.find(a => a.id === id);
+  const duplicada = data.absences.some(a => a.id !== id && a.playerId === actual.playerId && a.fecha === fecha);
+  if (duplicada) { showError('Ese jugador ya tiene otra ausencia registrada ese día.'); return; }
+
   try {
     await updateDocument('absences', id, { fecha, reasonId, observaciones });
     showSuccess('Ausencia actualizada.');
@@ -637,6 +838,7 @@ const RENDERERS = {
   inicio:    renderPanelInicio,
   jugadores: renderPanelJugadores,
   motivos:   renderPanelMotivos,
+  festivos:  renderPanelFestivos,
   informes:  renderPanelInformes,
 };
 
