@@ -106,14 +106,43 @@ async function onSubmitAusencia(e) {
 // ── PANEL: JUGADORES (alta unitaria + por lista, listado) ──
 
 let editingPlayerId = null;
+let jugadoresSubTab = 'listado';
+const equiposColapsados = new Set();
 
 function renderPanelJugadores(container) {
-  const teamOpts = TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
+  container.innerHTML = `
+    ${firebaseNotice()}
+    <div class="page-heading">Jugadores</div>
+    <div class="subtabs">
+      <button class="subtab-btn ${jugadoresSubTab === 'listado' ? 'active' : ''}" data-subtab="listado">👥 Jugadores</button>
+      <button class="subtab-btn ${jugadoresSubTab === 'anadir'  ? 'active' : ''}" data-subtab="anadir">➕ Añadir</button>
+    </div>
+    <div id="jugadores-body"></div>
+  `;
 
-  const rows = data.players
-    .slice()
-    .sort((a, b) => TEAMS.indexOf(a.equipo) - TEAMS.indexOf(b.equipo) || a.nombre.localeCompare(b.nombre))
-    .map(p => {
+  container.querySelectorAll('[data-subtab]').forEach(btn => {
+    btn.addEventListener('click', () => { jugadoresSubTab = btn.dataset.subtab; renderPanelJugadores(container); });
+  });
+
+  const body = document.getElementById('jugadores-body');
+  if (jugadoresSubTab === 'listado') renderListadoJugadores(body);
+  else renderAltaJugadores(body);
+}
+
+function renderListadoJugadores(container) {
+  const porEquipo = TEAMS.map(equipo => ({
+    equipo,
+    jugadores: data.players.filter(p => p.equipo === equipo).sort((a, b) => a.nombre.localeCompare(b.nombre)),
+  })).filter(g => g.jugadores.length > 0);
+
+  if (porEquipo.length === 0) {
+    container.innerHTML = '<div class="card card-lg">Sin jugadores todavía. Ve a "Añadir".</div>';
+    return;
+  }
+
+  container.innerHTML = porEquipo.map(({ equipo, jugadores }) => {
+    const colapsado = equiposColapsados.has(equipo);
+    const rows = jugadores.map(p => {
       if (p.id === editingPlayerId) {
         const teamOptsEdit = TEAMS.map(t => `<option value="${t}" ${t === p.equipo ? 'selected' : ''}>${t}</option>`).join('');
         return `
@@ -141,8 +170,47 @@ function renderPanelJugadores(container) {
       `;
     }).join('');
 
+    return `
+      <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
+        <button class="team-group-header" data-toggle-team="${safeText(equipo)}">
+          <span>${colapsado ? '▸' : '▾'} ${safeText(equipo)}</span>
+          <span class="badge badge-blue">${jugadores.length}</span>
+        </button>
+        ${colapsado ? '' : `
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead><tr style="text-align:left"><th>Nombre</th><th>Equipo</th><th>Curso</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `}
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('[data-toggle-team]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const eq = btn.dataset.toggleTeam;
+      if (equiposColapsados.has(eq)) equiposColapsados.delete(eq); else equiposColapsados.add(eq);
+      renderListadoJugadores(container);
+    });
+  });
+  container.querySelectorAll('[data-del-player]').forEach(btn => {
+    btn.addEventListener('click', () => onDeletePlayer(btn.dataset.delPlayer));
+  });
+  container.querySelectorAll('[data-edit-player]').forEach(btn => {
+    btn.addEventListener('click', () => { editingPlayerId = btn.dataset.editPlayer; renderListadoJugadores(container); });
+  });
+  container.querySelectorAll('[data-cancel-player]').forEach(btn => {
+    btn.addEventListener('click', () => { editingPlayerId = null; renderListadoJugadores(container); });
+  });
+  container.querySelectorAll('[data-save-player]').forEach(btn => {
+    btn.addEventListener('click', () => onSavePlayer(btn.dataset.savePlayer, container, renderListadoJugadores));
+  });
+}
+
+function renderAltaJugadores(container) {
+  const teamOpts = TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
+
   container.innerHTML = `
-    ${firebaseNotice()}
     <div class="card card-lg" style="margin-bottom:16px">
       <div class="card-title">Alta unitaria</div>
       <form id="form-jugador-unico">
@@ -153,7 +221,7 @@ function renderPanelJugadores(container) {
       </form>
     </div>
 
-    <div class="card card-lg" style="margin-bottom:16px">
+    <div class="card card-lg">
       <div class="card-title">Alta por lista</div>
       <div class="card-body">Una línea por jugador: <code>Nombre,Equipo,Curso</code></div>
       <div class="field-group" style="margin-top:8px">
@@ -161,35 +229,13 @@ function renderPanelJugadores(container) {
       </div>
       <button class="btn btn-primary" id="btn-alta-lista">Añadir lista</button>
     </div>
-
-    <div class="card card-lg">
-      <div class="card-title">Jugadores (${data.players.length})</div>
-      ${data.players.length === 0 ? '<div class="card-body">Sin jugadores todavía.</div>' : `
-        <table style="width:100%;font-size:12px;border-collapse:collapse">
-          <thead><tr style="text-align:left"><th>Nombre</th><th>Equipo</th><th>Curso</th><th></th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `}
-    </div>
   `;
 
   document.getElementById('form-jugador-unico').addEventListener('submit', onSubmitJugadorUnico);
   document.getElementById('btn-alta-lista').addEventListener('click', onAltaLista);
-  container.querySelectorAll('[data-del-player]').forEach(btn => {
-    btn.addEventListener('click', () => onDeletePlayer(btn.dataset.delPlayer));
-  });
-  container.querySelectorAll('[data-edit-player]').forEach(btn => {
-    btn.addEventListener('click', () => { editingPlayerId = btn.dataset.editPlayer; renderPanelJugadores(container); });
-  });
-  container.querySelectorAll('[data-cancel-player]').forEach(btn => {
-    btn.addEventListener('click', () => { editingPlayerId = null; renderPanelJugadores(container); });
-  });
-  container.querySelectorAll('[data-save-player]').forEach(btn => {
-    btn.addEventListener('click', () => onSavePlayer(btn.dataset.savePlayer, container));
-  });
 }
 
-async function onSavePlayer(id, container) {
+async function onSavePlayer(id, container, refresh) {
   const nombre = document.getElementById(`edit-nombre-${id}`).value.trim();
   const equipo = document.getElementById(`edit-equipo-${id}`).value;
   const curso  = document.getElementById(`edit-curso-${id}`).value.trim();
