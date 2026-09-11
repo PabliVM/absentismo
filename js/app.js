@@ -11,7 +11,7 @@ import { renderFooter }           from './render-footer.js';
 import { TABS, TEAMS, MESES, LOGO_PATH } from './constants.js';
 import { state }                  from './state.js';
 import { safeText, showError, showSuccess, formatDate } from './utils.js';
-import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, hoyStr } from './attendance-calculator.js';
+import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, hoyStr, toLocalYMD } from './attendance-calculator.js';
 
 // ── ESTADO EN MEMORIA DE COLECCIONES (cache local, sincronizado con Firestore) ──
 
@@ -80,7 +80,7 @@ function renderPanelInicio(container) {
           </div>
           <div class="field-group">
             <label class="label">Fecha</label>
-            <input class="input" type="date" id="au-fecha" required value="${new Date().toISOString().slice(0,10)}">
+            <input class="input" type="date" id="au-fecha" required value="${hoyStr()}">
           </div>
           <div class="field-group">
             <label class="label">Motivo</label>
@@ -113,7 +113,7 @@ function renderPanelInicio(container) {
   function mostrarSugerencias(texto) {
     const t = texto.trim().toLowerCase();
     const matches = jugadoresFiltrados.filter(p => p.nombre.toLowerCase().includes(t));
-    if (!t || matches.length === 0) { sugerencias.classList.add('hidden'); sugerencias.innerHTML = ''; return; }
+    if (matches.length === 0) { sugerencias.classList.add('hidden'); sugerencias.innerHTML = ''; return; }
     sugerencias.innerHTML = matches.slice(0, 8).map(p =>
       `<div class="autocomplete-item" data-player-id="${p.id}" data-player-nombre="${safeText(p.nombre)}">${safeText(p.nombre)} — ${safeText(p.equipo)}</div>`
     ).join('');
@@ -151,7 +151,7 @@ async function onSubmitAusencia(e) {
     await addDocument('absences', { playerId, fecha, reasonId, observaciones });
     showSuccess('Ausencia registrada.');
     e.target.reset();
-    document.getElementById('au-fecha').value = new Date().toISOString().slice(0,10);
+    document.getElementById('au-fecha').value = hoyStr();
     document.getElementById('au-jugador-id').value = '';
   } catch (err) {
     showError('Error al guardar: ' + err.message);
@@ -208,25 +208,25 @@ function renderListadoJugadores(container) {
         const rows = jugadores.map(p => {
           if (p.id === editingPlayerId) {
             return `
-              <tr data-edit-row="${p.id}">
-                <td><input class="input" id="edit-nombre-${p.id}" value="${safeText(p.nombre)}"></td>
-                <td><input class="input" id="edit-curso-${p.id}" value="${safeText(p.curso)}"></td>
-                <td style="white-space:nowrap;text-align:right">
+              <div class="player-row" data-edit-row="${p.id}">
+                <input class="input" id="edit-nombre-${p.id}" value="${safeText(p.nombre)}">
+                <input class="input" id="edit-curso-${p.id}" value="${safeText(p.curso)}">
+                <div style="white-space:nowrap;text-align:right">
                   <button class="btn btn-primary btn-sm" data-save-player="${p.id}">Guardar</button>
                   <button class="btn btn-ghost btn-sm" data-cancel-player="${p.id}">Cancelar</button>
-                </td>
-              </tr>
+                </div>
+              </div>
             `;
           }
           return `
-            <tr>
-              <td>${safeText(p.nombre)}</td>
-              <td style="white-space:nowrap">${safeText(p.curso)}</td>
-              <td style="white-space:nowrap;text-align:right">
+            <div class="player-row">
+              <div class="ellipsis">${safeText(p.nombre)}</div>
+              <div class="ellipsis">${safeText(p.curso)}</div>
+              <div style="white-space:nowrap;text-align:right">
                 <button class="icon-btn-subtle" data-edit-player="${p.id}" title="Editar">✏️</button>
                 <button class="icon-btn-subtle" data-del-player="${p.id}" title="Eliminar">🗑️</button>
-              </td>
-            </tr>
+              </div>
+            </div>
           `;
         }).join('');
 
@@ -237,10 +237,10 @@ function renderListadoJugadores(container) {
               <span class="badge badge-blue">${jugadores.length}</span>
             </button>
             ${colapsado ? '' : `
-              <table class="team-table">
-                <thead><tr style="text-align:left"><th>Nombre</th><th>Curso</th><th></th></tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
+              <div class="player-row player-row-head">
+                <div>Nombre</div><div>Curso</div><div></div>
+              </div>
+              ${rows}
             `}
           </div>
         `;
@@ -548,8 +548,8 @@ let anioActual = new Date().getFullYear();
 let jugadorSeleccionado = null;
 
 function primerYUltimoDiaMes(anio, mes) {
-  const inicio = new Date(anio, mes, 1).toISOString().slice(0, 10);
-  const fin    = new Date(anio, mes + 1, 0).toISOString().slice(0, 10);
+  const inicio = toLocalYMD(new Date(anio, mes, 1));
+  const fin    = toLocalYMD(new Date(anio, mes + 1, 0));
   return { inicio, fin };
 }
 
@@ -558,6 +558,7 @@ function renderPanelInformes(container) {
     <div class="card card-sm no-print" style="display:flex;gap:8px;margin-bottom:16px">
       <button class="btn ${informesView === 'calendario' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="calendario">Calendario general</button>
       <button class="btn ${informesView === 'individual' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="individual">Ficha individual</button>
+      <button class="btn ${informesView === 'festivos' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-view="festivos">Festivos</button>
     </div>
     <div id="informes-body"></div>
   `;
@@ -568,6 +569,7 @@ function renderPanelInformes(container) {
 
   const body = document.getElementById('informes-body');
   if (informesView === 'calendario') renderCalendarioGeneral(body);
+  else if (informesView === 'festivos') renderPanelFestivos(body);
   else renderFichaIndividual(body);
 }
 
@@ -616,7 +618,7 @@ function renderCalendarioGeneral(container) {
         const fg = c.tipo === 'ausencia' ? '#fff' : '#374151';
         return `<td style="text-align:center;background:${bg};color:${fg};font-size:9px;font-weight:700">${c.texto}</td>`;
       }).join('');
-      return `<tr><td style="white-space:nowrap;font-size:12px">${safeText(p.nombre)}</td>${cells}</tr>`;
+      return `<tr><td class="cal-name-col">${safeText(p.nombre)}</td>${cells}</tr>`;
     }).join('');
 
     return `
@@ -627,8 +629,8 @@ function renderCalendarioGeneral(container) {
         </button>
         ${colapsado ? '' : `
           <div style="overflow-x:auto">
-            <table style="border-collapse:collapse;font-size:11px">
-              <thead><tr><th style="text-align:left">Jugador</th>${headerCells}</tr></thead>
+            <table class="cal-table">
+              <thead><tr><th class="cal-name-col" style="text-align:left">Jugador</th>${headerCells}</tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
@@ -838,7 +840,6 @@ const RENDERERS = {
   inicio:    renderPanelInicio,
   jugadores: renderPanelJugadores,
   motivos:   renderPanelMotivos,
-  festivos:  renderPanelFestivos,
   informes:  renderPanelInformes,
 };
 
