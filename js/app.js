@@ -715,7 +715,8 @@ function renderFichaDetalle() {
 
     const motivoRows = Object.entries(resumen.porMotivo).map(([reasonId, count]) => {
       const r = rById[reasonId];
-      return `<span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}: ${count}</span>`;
+      const pct = resumen.ausencias ? Math.round(count / resumen.ausencias * 100) : 0;
+      return `<span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}: ${count} (${pct}%)</span>`;
     }).join(' ');
 
     const motivoOptsBase = data.reasons.map(r => `<option value="${r.id}">${safeText(r.nombre)} (${safeText(r.codigo)})</option>`).join('');
@@ -775,7 +776,15 @@ function renderFichaDetalle() {
           <div><div class="label">% Asistencia</div><div style="font-size:20px;font-weight:700">${resumen.pctAsistencia}%</div></div>
           <div><div class="label">% Absentismo</div><div style="font-size:20px;font-weight:700">${resumen.pctAbsentismo}%</div></div>
         </div>
-        ${motivoRows ? `<div class="label">Ausencias por motivo</div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${motivoRows}</div>` : ''}
+        ${motivoRows ? `
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+            <div style="flex:1;min-width:180px">
+              <div class="label">Ausencias por motivo</div>
+              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${motivoRows}</div>
+            </div>
+            <div class="no-print" style="width:200px;height:230px"><canvas id="ficha-motivo-chart"></canvas></div>
+          </div>
+        ` : ''}
       </div>
       <div class="card card-lg">
         <div class="card-title">Ausencias ${fichaVista === 'general' ? 'de la temporada' : 'del mes'} (${absences.length})</div>
@@ -794,6 +803,8 @@ function renderFichaDetalle() {
     });
     document.getElementById('btn-imprimir-ficha').addEventListener('click', () => window.print());
 
+    if (Object.keys(resumen.porMotivo).length > 0) renderMotivoChart(resumen.porMotivo, rById);
+
     detalle.querySelectorAll('[data-edit-absence]').forEach(btn => {
       btn.addEventListener('click', () => { editingAbsenceId = btn.dataset.editAbsence; renderFichaDetalle(); });
     });
@@ -807,6 +818,39 @@ function renderFichaDetalle() {
       btn.addEventListener('click', () => onDeleteAbsence(btn.dataset.delAbsence));
     });
   }
+}
+
+let ChartJsModule = null;
+let motivoChartInstance = null;
+
+async function renderMotivoChart(porMotivo, rById) {
+  const canvas = document.getElementById('ficha-motivo-chart');
+  if (!canvas) return;
+
+  if (!ChartJsModule) {
+    ChartJsModule = await import('https://cdn.jsdelivr.net/npm/chart.js@4/+esm');
+  }
+  const { Chart, ArcElement, PieController, Tooltip, Legend } = ChartJsModule;
+  Chart.register(ArcElement, PieController, Tooltip, Legend);
+
+  if (motivoChartInstance) { motivoChartInstance.destroy(); motivoChartInstance = null; }
+
+  const entries = Object.entries(porMotivo);
+  motivoChartInstance = new Chart(canvas, {
+    type: 'pie',
+    data: {
+      labels: entries.map(([id]) => rById[id] ? rById[id].nombre : '?'),
+      datasets: [{
+        data: entries.map(([, count]) => count),
+        backgroundColor: entries.map(([id]) => rById[id] ? rById[id].color : '#6b7280'),
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } },
+    },
+  });
 }
 
 async function onSaveAbsence(id, refresh) {
