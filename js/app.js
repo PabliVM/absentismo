@@ -2,13 +2,13 @@
 // APP.JS — Punto de entrada + paneles
 // ================================================
 
-import { initFirebase, watchAuth, login, logout, listenCollection, addDocument, updateDocument, deleteDocument }
+import { initFirebase, watchAuth, login, logout, resetPassword, listenCollection, addDocument, updateDocument, deleteDocument }
   from './firebase-service.js';
 import { isFirebaseUnconfigured } from './firebase-config.js';
 import { renderHeader }           from './render-header.js';
 import { renderTabs }             from './render-tabs.js';
 import { renderFooter }           from './render-footer.js';
-import { TABS, TEAMS, MESES }     from './constants.js';
+import { TABS, TEAMS, MESES, LOGO_PATH } from './constants.js';
 import { state }                  from './state.js';
 import { safeText, showError, showSuccess, formatDate } from './utils.js';
 import { resumenJugador, celdaCalendario, rangoFechas, isWeekend } from './attendance-calculator.js';
@@ -450,16 +450,24 @@ function setupEvents() {
 function renderLoginScreen() {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0f2f5">
-      <form id="form-login" class="card card-lg" style="width:280px">
-        <div class="card-title" style="text-align:center;margin-bottom:14px">Absentismo — Acceso</div>
-        <div class="field-group"><label class="label">Email</label><input class="input" type="email" id="login-email" required autocomplete="username"></div>
-        <div class="field-group"><label class="label">Contraseña</label><input class="input" type="password" id="login-pass" required autocomplete="current-password"></div>
-        <div id="login-error" class="hidden" style="color:#dc2626;font-size:12px;margin-bottom:10px"></div>
-        <button class="btn btn-primary" type="submit" style="width:100%">Entrar</button>
-      </form>
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;
+                background:linear-gradient(135deg,#1d4ed8,#2563eb)">
+      <div style="background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);
+                  padding:32px 30px;width:300px;text-align:center">
+        <img src="${LOGO_PATH}" alt="RM" style="width:64px;height:64px;object-fit:contain;margin:0 auto 12px">
+        <div style="font-size:19px;font-weight:800;color:#0f1117">Absentismo</div>
+        <div style="font-size:12px;font-weight:600;color:#2563eb;margin-bottom:20px">Real Madrid · Cantera</div>
+        <form id="form-login">
+          <div class="field-group" style="text-align:left"><input class="input" type="email" id="login-email" placeholder="Email" required autocomplete="username"></div>
+          <div class="field-group" style="text-align:left"><input class="input" type="password" id="login-pass" placeholder="Contraseña" required autocomplete="current-password"></div>
+          <div id="login-error" class="hidden" style="color:#dc2626;font-size:12px;margin-bottom:10px"></div>
+          <button class="btn btn-primary" type="submit" style="width:100%;padding:10px">Iniciar sesión</button>
+        </form>
+        <a href="#" id="link-forgot" style="display:block;margin-top:14px;font-size:12px;color:#2563eb;text-decoration:underline">¿Olvidaste tu contraseña?</a>
+      </div>
     </div>
   `;
+
   document.getElementById('form-login').addEventListener('submit', async e => {
     e.preventDefault();
     const email = document.getElementById('login-email').value.trim();
@@ -472,6 +480,18 @@ function renderLoginScreen() {
     } catch (err) {
       errBox.textContent = 'Email o contraseña incorrectos.';
       errBox.classList.remove('hidden');
+    }
+  });
+
+  document.getElementById('link-forgot').addEventListener('click', async e => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    if (!email) { showError('Escribe tu email arriba primero.'); return; }
+    try {
+      await resetPassword(email);
+      showSuccess('Te hemos enviado un email para restablecer la contraseña.');
+    } catch (err) {
+      showError('No se pudo enviar el email: ' + err.message);
     }
   });
 }
