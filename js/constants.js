@@ -1,10 +1,10 @@
-// ================================================
+m// ================================================
 // CONSTANTS.JS — Constantes de la app Absentismo
 // ================================================
 
-export const APP_NAME    = 'Absentismo';
+export const APP_NAME    = 'Control de Absentismo';
 export const LOGO_PATH   = './rm__.png';
-export const FOOTER_TEXT = 'Cantera del Real Madrid CF — Absentismo';
+export const FOOTER_TEXT = 'Cantera del Real Madrid CF — Control de Absentismo';
 
 export const DEFAULT_SEASONS = [
   '2025/2026',
