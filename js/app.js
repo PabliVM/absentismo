@@ -455,7 +455,7 @@ function renderLoginScreen() {
       <div style="background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);
                   padding:32px 30px;width:300px;text-align:center">
         <img src="${LOGO_PATH}" alt="RM" style="width:64px;height:64px;object-fit:contain;margin:0 auto 12px">
-        <div style="font-size:19px;font-weight:800;color:#0f1117">Absentismo</div>
+        <div style="font-size:19px;font-weight:800;color:#0f1117">Control de Absentismo</div>
         <div style="font-size:12px;font-weight:600;color:#2563eb;margin-bottom:20px">Real Madrid · Cantera</div>
         <form id="form-login">
           <div class="field-group" style="text-align:left"><input class="input" type="email" id="login-email" placeholder="Email" required autocomplete="username"></div>
