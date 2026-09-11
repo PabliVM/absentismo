@@ -37,10 +37,11 @@ export function esFestivo(dateStr, curso, festivos = []) {
     dateStr >= f.fechaInicio && dateStr <= (f.fechaFin || f.fechaInicio));
 }
 
-export function isLectivo(dateStr, curso, festivos = []) {
+export function isLectivo(dateStr, curso, festivos = [], cursoRango = null) {
   if (isWeekend(dateStr)) return false;
   if (dateStr > hoyStr()) return false; // día futuro: aún no ha ocurrido
   if (esFestivo(dateStr, curso, festivos)) return false;
+  if (cursoRango && (dateStr < cursoRango.fechaInicio || dateStr > cursoRango.fechaFin)) return false; // fuera del curso
   return true;
 }
 
@@ -56,16 +57,17 @@ export function rangoFechas(inicio, fin) {
   return out;
 }
 
-export function diasLectivos(inicio, fin, curso, festivos = []) {
-  return rangoFechas(inicio, fin).filter(f => isLectivo(f, curso, festivos)).length;
+export function diasLectivos(inicio, fin, curso, festivos = [], cursoRango = null) {
+  return rangoFechas(inicio, fin).filter(f => isLectivo(f, curso, festivos, cursoRango)).length;
 }
 
 /**
  * absences: ya filtradas por playerId y rango de fechas.
  * curso: el del jugador, para aplicar sus festivos correspondientes.
+ * cursoRango: { fechaInicio, fechaFin } real del curso — días fuera de ahí no cuentan.
  */
-export function resumenJugador(inicio, fin, absences, curso, festivos = []) {
-  const previstas   = diasLectivos(inicio, fin, curso, festivos);
+export function resumenJugador(inicio, fin, absences, curso, festivos = [], cursoRango = null) {
+  const previstas   = diasLectivos(inicio, fin, curso, festivos, cursoRango);
   const ausencias   = absences.length;
   const asistencias = Math.max(previstas - ausencias, 0);
   const pctAsistencia = previstas ? +(asistencias / previstas * 100).toFixed(1) : 0;
@@ -79,10 +81,10 @@ export function resumenJugador(inicio, fin, absences, curso, festivos = []) {
 
 /**
  * Código de celda para el calendario. '' = lectivo sin ausencia (presente).
- * Ausencia = código del motivo. Fin de semana/festivo/futuro = no-lectivo.
+ * Ausencia = código del motivo. Fin de semana/festivo/futuro/fuera de curso = no-lectivo.
  */
-export function celdaCalendario(dateStr, absence, reasonsById, curso, festivos = []) {
-  if (!isLectivo(dateStr, curso, festivos)) return { tipo: 'no-lectivo', texto: '' };
+export function celdaCalendario(dateStr, absence, reasonsById, curso, festivos = [], cursoRango = null) {
+  if (!isLectivo(dateStr, curso, festivos, cursoRango)) return { tipo: 'no-lectivo', texto: '' };
   if (absence) {
     const reason = reasonsById[absence.reasonId];
     return { tipo: 'ausencia', texto: reason ? reason.codigo : 'OTR', color: reason ? reason.color : '#6b7280' };
