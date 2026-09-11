@@ -1,43 +1,52 @@
-
 // ================================================
 // ATTENDANCE-CALCULATOR.JS — Fuente única de verdad
-// Ningún otro módulo (app, PDF, Excel) recalcula % por su cuenta.
-// Todos consumen las funciones de aquí. (punto 37/38 del brief)
+// Modelo simplificado: sin colección "sessions".
+// Día lectivo = día laborable (lunes-viernes) que no sea festivo.
+// Ausencia = documento en "absences" para ese jugador+fecha.
+// Presencia se asume por defecto (no hay registro positivo de asistencia).
 // ================================================
 
-// Modelo de datos Firestore (colecciones):
-//
-// teams      { id, nombre, cursoTipo }
-// players    { id, nombre, apellidos, teamId, cursos:[cursoId], fechaAlta, fechaBaja? }
-// courses    { id, nombre }                      // ej. Bachillerato, Inglés
-// sessions   { id, teamId, courseId, fecha (YYYY-MM-DD) }   // 1 doc = 1 sesión prevista
-// reasons    { id, nombre, codigo, color }        // motivos configurables (punto 31)
-// absences   { id, playerId, sessionId, reasonId, justificada:bool, observaciones }
+// Colecciones Firestore:
+// players  { id, nombre, equipo, curso }
+// reasons  { id, nombre, codigo, color }
+// absences { id, playerId, fecha (YYYY-MM-DD), reasonId, observaciones? }
 
-/**
- * Calcula fecha inicial/final efectivas para un jugador dado un rango
- * seleccionado por el usuario. Nunca usa "hoy" salvo que el usuario
- * pida explícitamente "hasta hoy". (punto 38)
- */
-export function rangoEfectivo(fechaInicioSel, fechaFinSel, player) {
-  const inicio = maxFecha(fechaInicioSel, player.fechaAlta);
-  const fin    = player.fechaBaja ? minFecha(fechaFinSel, player.fechaBaja) : fechaFinSel;
-  return { inicio, fin };
+export function isWeekend(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0 = domingo, 6 = sábado
+  return day === 0 || day === 6;
 }
 
-function maxFecha(a, b) { if (!b) return a; return a > b ? a : b; }
-function minFecha(a, b) { if (!b) return a; return a < b ? a : b; }
+export function isLectivo(dateStr, festivos = []) {
+  if (isWeekend(dateStr)) return false;
+  if (festivos.includes(dateStr)) return false;
+  return true;
+}
+
+/** Devuelve array de fechas YYYY-MM-DD entre inicio y fin (inclusive). */
+export function rangoFechas(inicio, fin) {
+  const out = [];
+  const cur = new Date(inicio + 'T00:00:00');
+  const end = new Date(fin + 'T00:00:00');
+  while (cur <= end) {
+    out.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+export function diasLectivos(inicio, fin, festivos = []) {
+  return rangoFechas(inicio, fin).filter(f => isLectivo(f, festivos)).length;
+}
 
 /**
- * sessions: sesiones ya filtradas por equipo/curso/rango efectivo.
- * absences: ausencias del jugador cruzadas por sessionId.
+ * absences: ya filtradas por playerId y rango de fechas.
  * Devuelve el resumen único que consumen app, PDF y Excel.
  */
-export function resumenJugador(sessions, absences) {
-  const previstas   = sessions.length;
-  const ausenciasMap = new Map(absences.map(a => [a.sessionId, a]));
-  const ausencias    = sessions.filter(s => ausenciasMap.has(s.id)).length;
-  const asistencias  = previstas - ausencias;
+export function resumenJugador(inicio, fin, absences, festivos = []) {
+  const previstas  = diasLectivos(inicio, fin, festivos);
+  const ausencias  = absences.length;
+  const asistencias = Math.max(previstas - ausencias, 0);
   const pctAsistencia = previstas ? +(asistencias / previstas * 100).toFixed(1) : 0;
   const pctAbsentismo = previstas ? +(ausencias   / previstas * 100).toFixed(1) : 0;
 
@@ -50,12 +59,14 @@ export function resumenJugador(sessions, absences) {
 }
 
 /**
- * Código de celda para el Excel calendario (punto 33/34).
- * '—' = sin sesión prevista ese día. Nunca se cuenta como asistencia.
+ * Código de celda para el calendario. '' = lectivo sin ausencia (presente).
+ * 'FIN' = fin de semana. Ausencia = código del motivo.
  */
-export function celdaCalendario(session, absence, reasonsById) {
-  if (!session) return '—';
-  if (!absence) return '✓';
-  const reason = reasonsById[absence.reasonId];
-  return reason ? reason.codigo : 'OTR';
+export function celdaCalendario(dateStr, absence, reasonsById, festivos = []) {
+  if (isWeekend(dateStr) || festivos.includes(dateStr)) return { tipo: 'no-lectivo', texto: '' };
+  if (absence) {
+    const reason = reasonsById[absence.reasonId];
+    return { tipo: 'ausencia', texto: reason ? reason.codigo : 'OTR', color: reason ? reason.color : '#6b7280' };
+  }
+  return { tipo: 'presente', texto: '' };
 }
