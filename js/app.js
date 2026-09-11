@@ -816,6 +816,8 @@ function renderFichaDetalle() {
           <div style="flex:1;min-width:220px">
             <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">
               <div><div class="label">Días lectivos</div><div style="font-size:20px;font-weight:700">${resumen.previstas}</div></div>
+            </div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">
               <div><div class="label">Asistencias</div><div style="font-size:20px;font-weight:700;color:#16a34a">${resumen.asistencias}</div></div>
               <div><div class="label">Ausencias</div><div style="font-size:20px;font-weight:700;color:#dc2626">${resumen.ausencias}</div></div>
             </div>
