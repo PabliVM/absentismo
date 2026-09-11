@@ -13,22 +13,29 @@ export const DEFAULT_SEASONS = [
 ];
 
 export const TABS = [
-  { key: 'inicio',      label: 'Inicio'      },
-  { key: 'jugadores',   label: 'Jugadores'   },
-  { key: 'equipos',     label: 'Equipos'     },
-  { key: 'sesiones',    label: 'Sesiones'    },
-  { key: 'motivos',     label: 'Motivos'     },
-  { key: 'informes',    label: 'Informes'    },
+  { key: 'inicio',    label: 'Inicio'    },
+  { key: 'jugadores', label: 'Jugadores' },
+  { key: 'motivos',   label: 'Motivos'   },
+  { key: 'informes',  label: 'Informes'  },
 ];
 
-// Motivos de ausencia por defecto (fase inicial). Configurables desde
-// la pestaña "Motivos" — NUNCA hardcodear en el exportador (punto 31).
-export const DEFAULT_MOTIVOS = [
-  { id: 'dep', nombre: 'Deportivo',          codigo: 'DEP', color: '#ea580c' },
-  { id: 'enf', nombre: 'Enfermedad',         codigo: 'ENF', color: '#dc2626' },
-  { id: 'sel', nombre: 'Selección nacional', codigo: 'SEL', color: '#16a34a' },
-  { id: 'les', nombre: 'Lesión',             codigo: 'LES', color: '#7c3aed' },
-  { id: 'per', nombre: 'Personal',           codigo: 'PER', color: '#0891b2' },
-  { id: 'med', nombre: 'Médico',             codigo: 'MED', color: '#db2777' },
-  { id: 'otr', nombre: 'Otros',              codigo: 'OTR', color: '#6b7280' },
+// Orden fijo de equipos de cantera — usado en el <select> de Jugadores
+// y para ordenar filas en el informe calendario.
+export const TEAMS = [
+  'Castilla',
+  'RM C',
+  'Juvenil A',
+  'Juvenil B',
+  'Juvenil C',
+  'Cadete A',
+  'Cadete B',
+  'Infantil A',
+  'Infantil B',
+  'Alevín A',
+  'Fútbol 7',
+];
+
+export const MESES = [
+  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
 ];
