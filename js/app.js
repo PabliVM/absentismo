@@ -134,8 +134,8 @@ function renderPanelJugadores(container) {
           <td>${safeText(p.equipo)}</td>
           <td>${safeText(p.curso)}</td>
           <td style="white-space:nowrap">
-            <button class="btn btn-ghost btn-sm" data-edit-player="${p.id}">Editar</button>
-            <button class="btn btn-ghost btn-sm" data-del-player="${p.id}">Eliminar</button>
+            <button class="btn btn-ghost btn-icon" data-edit-player="${p.id}" title="Editar">✏️</button>
+            <button class="btn btn-ghost btn-icon" data-del-player="${p.id}" title="Eliminar">🗑️</button>
           </td>
         </tr>
       `;
@@ -230,7 +230,7 @@ async function onAltaLista() {
   }
 
   if (invalidos.length) {
-    showError(`${invalidos.length} línea(s) inválida(s), revisa formato Nombre,Equipo,Curso.`);
+    showError(`Líneas inválidas:\n${invalidos.slice(0, 5).join('\n')}${invalidos.length > 5 ? `\n… y ${invalidos.length - 5} más` : ''}`, 8000);
     return;
   }
 
@@ -274,8 +274,8 @@ function renderPanelMotivos(container) {
         <td>${safeText(r.nombre)}</td>
         <td></td>
         <td style="white-space:nowrap">
-          <button class="btn btn-ghost btn-sm" data-edit-reason="${r.id}">Editar</button>
-          <button class="btn btn-ghost btn-sm" data-del-reason="${r.id}">Eliminar</button>
+          <button class="btn btn-ghost btn-icon" data-edit-reason="${r.id}" title="Editar">✏️</button>
+          <button class="btn btn-ghost btn-icon" data-del-reason="${r.id}" title="Eliminar">🗑️</button>
         </td>
       </tr>
     `;
@@ -503,8 +503,8 @@ function renderFichaIndividual(container) {
           <td><span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}</span> ${r ? safeText(r.nombre) : ''}</td>
           <td>${safeText(a.observaciones || '')}</td>
           <td style="white-space:nowrap">
-            <button class="btn btn-ghost btn-sm" data-edit-absence="${a.id}">Editar</button>
-            <button class="btn btn-ghost btn-sm" data-del-absence="${a.id}">Eliminar</button>
+            <button class="btn btn-ghost btn-icon" data-edit-absence="${a.id}" title="Editar">✏️</button>
+            <button class="btn btn-ghost btn-icon" data-del-absence="${a.id}" title="Eliminar">🗑️</button>
           </td>
         </tr>
       `;
