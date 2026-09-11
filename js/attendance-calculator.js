@@ -10,8 +10,18 @@
 // absences { id, playerId, fecha (YYYY-MM-DD), reasonId, observaciones? }
 // festivos { id, nombre, curso ('todos' o curso exacto), fechaInicio, fechaFin }
 
+/** Formatea una fecha en YYYY-MM-DD usando la ZONA HORARIA LOCAL (no UTC).
+ *  toISOString() usa UTC y desplaza el día en zonas horarias positivas (España) —
+ *  por eso NUNCA se usa toISOString para fechas de calendario en esta app. */
+export function toLocalYMD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function hoyStr() {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalYMD(new Date());
 }
 
 export function isWeekend(dateStr) {
@@ -40,7 +50,7 @@ export function rangoFechas(inicio, fin) {
   const cur = new Date(inicio + 'T00:00:00');
   const end = new Date(fin + 'T00:00:00');
   while (cur <= end) {
-    out.push(cur.toISOString().slice(0, 10));
+    out.push(toLocalYMD(cur));
     cur.setDate(cur.getDate() + 1);
   }
   return out;
