@@ -801,7 +801,7 @@ function renderFichaDetalle() {
       </div>
       ${fichaVista === 'mensual' ? renderMesSelector() : `<div class="card-body no-print" style="margin-bottom:12px">Temporada ${safeText(state.activeSeason)} (01/09 — hoy)</div>`}
       <div id="ficha-imprimible">
-      <div class="card card-lg" style="margin-bottom:16px">
+      <div class="card card-lg" style="margin-bottom:16px;max-width:760px">
         <div class="print-header" style="display:none">
           <img src="${LOGO_PATH}" alt="RM">
           <div>
@@ -812,22 +812,32 @@ function renderFichaDetalle() {
         <div class="card-title">${safeText(player.nombre)}</div>
         <div class="card-body">Equipo: <strong>${safeText(player.equipo)}</strong> · Curso: <strong>${safeText(player.curso)}</strong></div>
         <div class="divider"></div>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px">
-          <div><div class="label">Días lectivos</div><div style="font-size:20px;font-weight:700">${resumen.previstas}</div></div>
-          <div><div class="label">Asistencias</div><div style="font-size:20px;font-weight:700;color:#16a34a">${resumen.asistencias}</div></div>
-          <div><div class="label">Ausencias</div><div style="font-size:20px;font-weight:700;color:#dc2626">${resumen.ausencias}</div></div>
-          <div><div class="label">% Asistencia</div><div style="font-size:20px;font-weight:700">${resumen.pctAsistencia}%</div></div>
-          <div><div class="label">% Absentismo</div><div style="font-size:20px;font-weight:700">${resumen.pctAbsentismo}%</div></div>
-        </div>
-        ${motivoRows ? `
-          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
-            <div style="flex:1;min-width:180px">
-              <div class="label">Ausencias por motivo</div>
-              <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${motivoRows}</div>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
+          <div style="flex:1;min-width:220px">
+            <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px">
+              <div><div class="label">Días lectivos</div><div style="font-size:20px;font-weight:700">${resumen.previstas}</div></div>
+              <div><div class="label">Asistencias</div><div style="font-size:20px;font-weight:700;color:#16a34a">${resumen.asistencias}</div></div>
+              <div><div class="label">Ausencias</div><div style="font-size:20px;font-weight:700;color:#dc2626">${resumen.ausencias}</div></div>
+              <div><div class="label">% Asistencia</div><div style="font-size:20px;font-weight:700">${resumen.pctAsistencia}%</div></div>
+              <div><div class="label">% Absentismo</div><div style="font-size:20px;font-weight:700">${resumen.pctAbsentismo}%</div></div>
             </div>
-            <div class="no-print" style="width:200px;height:230px"><canvas id="ficha-motivo-chart"></canvas></div>
+            ${motivoRows ? `<div class="label">Ausencias por motivo</div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${motivoRows}</div>` : ''}
           </div>
-        ` : ''}
+          ${resumen.previstas > 0 ? `
+            <div style="display:flex;gap:16px;flex-shrink:0">
+              <div style="width:140px;text-align:center">
+                <div class="label" style="margin-bottom:4px">Asistencia</div>
+                <canvas id="ficha-asistencia-chart"></canvas>
+              </div>
+              ${motivoRows ? `
+                <div style="width:150px;text-align:center">
+                  <div class="label" style="margin-bottom:4px">Motivo</div>
+                  <canvas id="ficha-motivo-chart"></canvas>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+        </div>
       </div>
       <div class="card card-lg">
         <div class="card-title">Ausencias ${fichaVista === 'general' ? 'de la temporada' : 'del mes'} (${absences.length})</div>
@@ -846,6 +856,7 @@ function renderFichaDetalle() {
     });
     document.getElementById('btn-imprimir-ficha').addEventListener('click', () => window.print());
 
+    if (resumen.previstas > 0) renderAsistenciaChart(resumen);
     if (Object.keys(resumen.porMotivo).length > 0) renderMotivoChart(resumen.porMotivo, rById);
 
     detalle.querySelectorAll('[data-edit-absence]').forEach(btn => {
@@ -865,16 +876,42 @@ function renderFichaDetalle() {
 
 let ChartJsModule = null;
 let motivoChartInstance = null;
+let asistenciaChartInstance = null;
+
+async function cargarChartJs() {
+  if (!ChartJsModule) {
+    ChartJsModule = await import('https://cdn.jsdelivr.net/npm/chart.js@4/+esm');
+    const { Chart, ArcElement, PieController, Tooltip, Legend } = ChartJsModule;
+    Chart.register(ArcElement, PieController, Tooltip, Legend);
+  }
+  return ChartJsModule;
+}
+
+async function renderAsistenciaChart(resumen) {
+  const canvas = document.getElementById('ficha-asistencia-chart');
+  if (!canvas) return;
+  const { Chart } = await cargarChartJs();
+
+  if (asistenciaChartInstance) { asistenciaChartInstance.destroy(); asistenciaChartInstance = null; }
+
+  asistenciaChartInstance = new Chart(canvas, {
+    type: 'pie',
+    data: {
+      labels: ['Asistencias', 'Ausencias'],
+      datasets: [{ data: [resumen.asistencias, resumen.ausencias], backgroundColor: ['#16a34a', '#dc2626'] }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } },
+    },
+  });
+}
 
 async function renderMotivoChart(porMotivo, rById) {
   const canvas = document.getElementById('ficha-motivo-chart');
   if (!canvas) return;
-
-  if (!ChartJsModule) {
-    ChartJsModule = await import('https://cdn.jsdelivr.net/npm/chart.js@4/+esm');
-  }
-  const { Chart, ArcElement, PieController, Tooltip, Legend } = ChartJsModule;
-  Chart.register(ArcElement, PieController, Tooltip, Legend);
+  const { Chart } = await cargarChartJs();
 
   if (motivoChartInstance) { motivoChartInstance.destroy(); motivoChartInstance = null; }
 
