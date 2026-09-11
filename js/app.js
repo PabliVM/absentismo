@@ -825,12 +825,12 @@ function renderFichaDetalle() {
           </div>
           ${resumen.previstas > 0 ? `
             <div style="display:flex;gap:16px;flex-shrink:0">
-              <div style="width:140px;text-align:center">
+              <div style="width:140px;height:160px;text-align:center;position:relative">
                 <div class="label" style="margin-bottom:4px">Asistencia</div>
                 <canvas id="ficha-asistencia-chart"></canvas>
               </div>
               ${motivoRows ? `
-                <div style="width:150px;text-align:center">
+                <div style="width:150px;height:170px;text-align:center;position:relative">
                   <div class="label" style="margin-bottom:4px">Motivo</div>
                   <canvas id="ficha-motivo-chart"></canvas>
                 </div>
