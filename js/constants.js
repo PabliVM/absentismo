@@ -7,15 +7,14 @@ export const LOGO_PATH   = './rm__.png';
 export const FOOTER_TEXT = 'Cantera del Real Madrid CF — Control de Absentismo';
 
 export const DEFAULT_SEASONS = [
-  '2025/2026',
   '2026/2027',
-  '2027/2028',
 ];
 
 export const TABS = [
   { key: 'inicio',    label: 'Inicio'    },
   { key: 'jugadores', label: 'Jugadores' },
   { key: 'motivos',   label: 'Motivos'   },
+  { key: 'festivos',  label: 'Festivos'  },
   { key: 'informes',  label: 'Informes'  },
 ];
 
