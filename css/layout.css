@@ -257,3 +257,21 @@ body {
   #rm-tabs { top: 52px; padding: 0 8px; }
   #rm-main { padding: 16px 12px; }
 }
+
+/* ================================================
+   IMPRESIÓN — Informe individual en PDF (Ctrl+P / Guardar como PDF)
+   ================================================ */
+@media print {
+  #rm-header, #rm-tabs, #rm-footer, #rm-toast, .no-print { display: none !important; }
+  body, #app, #rm-main { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+  #rm-main { max-width: none; }
+  .tab-panel { display: none !important; }
+  .tab-panel[data-tab="informes"] { display: block !important; }
+  #ficha-imprimible { display: block !important; }
+  #ficha-imprimible .card { box-shadow: none !important; border: 1px solid #ccc !important; page-break-inside: avoid; }
+  .print-header {
+    display: flex !important; align-items: center; gap: 12px; margin-bottom: 14px;
+    padding-bottom: 10px; border-bottom: 2px solid #2563eb;
+  }
+  .print-header img { width: 44px; height: 44px; object-fit: contain; }
+}
