@@ -138,3 +138,14 @@
   font-size: 13px; font-weight: 700; color: var(--text-primary); cursor: pointer; font-family: var(--font-sans);
 }
 .team-group-header:hover { background: var(--bg-hover); }
+
+/* ── GRID DE EQUIPOS — Jugadores ── */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 320px));
+  gap: 14px;
+}
+.team-card { padding: 0; overflow: hidden; align-self: start; }
+.team-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.team-table th { padding: 6px 10px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.team-table td { padding: 6px 10px; border-top: 1px solid var(--border-subtle); }
