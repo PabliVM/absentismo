@@ -116,3 +116,25 @@
   border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .03em;
   color: #fff;
 }
+
+/* ── PÁGINA: cabecera + sub-pestañas tipo Convocatorias/Fechas ── */
+.page-heading {
+  font-size: 22px; font-weight: 800; color: var(--text-primary);
+  margin: 4px 0 16px;
+}
+.subtabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.subtab-btn {
+  height: 36px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--border-default); background: #fff; color: var(--text-secondary);
+  font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; font-family: var(--font-sans);
+}
+.subtab-btn:hover  { background: var(--bg-hover); }
+.subtab-btn.active { background: var(--blue-500); color: #fff; border-color: var(--blue-500); }
+
+.team-group-header {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: #f8fafd; border: none; border-bottom: 1px solid var(--border-default);
+  font-size: 13px; font-weight: 700; color: var(--text-primary); cursor: pointer; font-family: var(--font-sans);
+}
+.team-group-header:hover { background: var(--bg-hover); }
