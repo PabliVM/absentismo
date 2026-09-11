@@ -14,7 +14,6 @@ export const TABS = [
   { key: 'inicio',    label: 'Inicio'    },
   { key: 'jugadores', label: 'Jugadores' },
   { key: 'motivos',   label: 'Motivos'   },
-  { key: 'festivos',  label: 'Festivos'  },
   { key: 'informes',  label: 'Informes'  },
 ];
 
