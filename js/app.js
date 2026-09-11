@@ -2,7 +2,7 @@
 // APP.JS — Punto de entrada + paneles
 // ================================================
 
-import { initFirebase, listenCollection, addDocument, updateDocument, deleteDocument }
+import { initFirebase, watchAuth, login, logout, listenCollection, addDocument, updateDocument, deleteDocument }
   from './firebase-service.js';
 import { isFirebaseUnconfigured } from './firebase-config.js';
 import { renderHeader }           from './render-header.js';
@@ -445,14 +445,72 @@ function setupEvents() {
   });
 }
 
-function boot() {
-  const ok = initFirebase();
+// ── LOGIN ─────────────────────────────────────────────
+
+function renderLoginScreen() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0f2f5">
+      <form id="form-login" class="card card-lg" style="width:280px">
+        <div class="card-title" style="text-align:center;margin-bottom:14px">Absentismo — Acceso</div>
+        <div class="field-group"><label class="label">Email</label><input class="input" type="email" id="login-email" required autocomplete="username"></div>
+        <div class="field-group"><label class="label">Contraseña</label><input class="input" type="password" id="login-pass" required autocomplete="current-password"></div>
+        <div id="login-error" class="hidden" style="color:#dc2626;font-size:12px;margin-bottom:10px"></div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Entrar</button>
+      </form>
+    </div>
+  `;
+  document.getElementById('form-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    const pass  = document.getElementById('login-pass').value;
+    const errBox = document.getElementById('login-error');
+    errBox.classList.add('hidden');
+    try {
+      await login(email, pass);
+      // watchAuth() detecta el login y llama a renderAppShell()
+    } catch (err) {
+      errBox.textContent = 'Email o contraseña incorrectos.';
+      errBox.classList.remove('hidden');
+    }
+  });
+}
+
+function renderAppShell() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <header id="rm-header"></header>
+    <nav    id="rm-tabs"></nav>
+    <main   id="rm-main"></main>
+    <footer id="rm-footer"></footer>
+  `;
   renderFooter();
   renderHeader();
   renderTabs();
   renderMain();
+
+  const headerRight = document.querySelector('#rm-header .header-right');
+  if (headerRight) {
+    const btnLogout = document.createElement('button');
+    btnLogout.className = 'btn-theme';
+    btnLogout.title = 'Cerrar sesión';
+    btnLogout.textContent = '⏻';
+    btnLogout.addEventListener('click', () => logout());
+    headerRight.appendChild(btnLogout);
+  }
+}
+
+// ── BOOT ─────────────────────────────────────────────
+
+function boot() {
+  const ok = initFirebase();
   setupEvents();
-  if (ok) startListeners();
+  if (!ok) { renderAppShell(); return; }
+
+  watchAuth(user => {
+    if (user) { renderAppShell(); startListeners(); }
+    else { unsubscribers.forEach(u => u()); unsubscribers = []; renderLoginScreen(); }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', boot);
