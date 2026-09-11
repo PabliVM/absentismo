@@ -2,7 +2,7 @@
 // APP.JS — Punto de entrada + paneles
 // ================================================
 
-import { initFirebase, watchAuth, login, logout, resetPassword, listenCollection, addDocument, updateDocument, deleteDocument, saveDocument }
+import { initFirebase, watchAuth, login, logout, resetPassword, listenCollection, addDocument, updateDocument, deleteDocument }
   from './firebase-service.js';
 import { isFirebaseUnconfigured } from './firebase-config.js';
 import { renderHeader }           from './render-header.js';
@@ -477,7 +477,6 @@ function cursosConocidos() {
 }
 
 function renderPanelFestivos(container) {
-  const temporadaActual = rangoTemporada(state.activeSeason);
   const cursoOpts = ['todos', ...cursosConocidos()].map(c =>
     `<option value="${safeText(c)}">${c === 'todos' ? 'Todos los cursos' : safeText(c)}</option>`).join('');
 
@@ -490,16 +489,25 @@ function renderPanelFestivos(container) {
     </tr>
   `).join('');
 
+  const temporadaRows = data.temporadas.slice().sort((a, b) => (a.curso || '').localeCompare(b.curso || '')).map(t => `
+    <tr>
+      <td>${t.curso === 'todos' ? 'Todos los cursos' : safeText(t.curso)}</td>
+      <td>${formatDate(t.fechaInicio)} — ${formatDate(t.fechaFin)}</td>
+      <td style="text-align:right"><button class="icon-btn-subtle" data-del-temporada="${t.id}" title="Eliminar">🗑️</button></td>
+    </tr>
+  `).join('');
+
   container.innerHTML = `
     ${firebaseNotice()}
     <div class="page-heading">Festivos y vacaciones</div>
 
     <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
-      <div class="card-title">Inicio y fin del curso — temporada ${safeText(state.activeSeason)}</div>
-      <div class="card-body">Se usa en Informes → Ficha individual → "General (temporada)" para contar los días lectivos reales.</div>
+      <div class="card-title">Inicio y fin de curso</div>
+      <div class="card-body">Define el rango real de cada curso (o "todos"). Se usa en Informes → Ficha individual → "General (temporada)".</div>
       <form id="form-temporada" style="margin-top:8px">
-        <div class="field-group"><label class="label">Inicio de curso</label><input class="input" type="date" id="te-inicio" value="${temporadaActual.inicio}" required></div>
-        <div class="field-group"><label class="label">Fin de curso</label><input class="input" type="date" id="te-fin" value="${temporadaActual.fin}" required></div>
+        <div class="field-group"><label class="label">Curso</label><select class="select" id="te-curso" required>${cursoOpts}</select></div>
+        <div class="field-group"><label class="label">Inicio de curso</label><input class="input" type="date" id="te-inicio" required></div>
+        <div class="field-group"><label class="label">Fin de curso</label><input class="input" type="date" id="te-fin" required></div>
         <button class="btn btn-primary" type="submit">Guardar</button>
       </form>
     </div>
@@ -522,6 +530,15 @@ function renderPanelFestivos(container) {
       </div>
       <button class="btn btn-primary" id="btn-alta-lista-festivos">Añadir lista</button>
     </div>
+    <div class="card card-lg" style="margin-bottom:16px;max-width:480px">
+      <div class="card-title">Inicios/fines de curso guardados (${data.temporadas.length})</div>
+      ${data.temporadas.length === 0 ? '<div class="card-body">Sin configurar todavía.</div>' : `
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="text-align:left"><th>Curso</th><th>Rango</th><th></th></tr></thead>
+          <tbody>${temporadaRows}</tbody>
+        </table>
+      `}
+    </div>
     <div class="card card-lg">
       <div class="card-title">Festivos (${data.festivos.length})</div>
       ${data.festivos.length === 0 ? '<div class="card-body">Sin festivos todavía.</div>' : `
@@ -538,6 +555,9 @@ function renderPanelFestivos(container) {
   document.getElementById('btn-alta-lista-festivos').addEventListener('click', onAltaListaFestivos);
   container.querySelectorAll('[data-del-festivo]').forEach(btn => {
     btn.addEventListener('click', () => onDeleteFestivo(btn.dataset.delFestivo));
+  });
+  container.querySelectorAll('[data-del-temporada]').forEach(btn => {
+    btn.addEventListener('click', () => onDeleteTemporada(btn.dataset.delTemporada));
   });
 }
 
@@ -576,12 +596,24 @@ async function onAltaListaFestivos() {
 
 async function onSubmitTemporada(e) {
   e.preventDefault();
+  const curso = document.getElementById('te-curso').value;
   const fechaInicio = document.getElementById('te-inicio').value;
   const fechaFin    = document.getElementById('te-fin').value;
   if (fechaFin < fechaInicio) { showError('El fin no puede ser anterior al inicio.'); return; }
+  const yaExiste = data.temporadas.find(t => t.curso === curso);
   try {
-    await saveDocument('temporadas', state.activeSeason.replace('/', '-'), { fechaInicio, fechaFin });
+    if (yaExiste) await updateDocument('temporadas', yaExiste.id, { fechaInicio, fechaFin });
+    else await addDocument('temporadas', { curso, fechaInicio, fechaFin });
     showSuccess('Inicio/fin de curso guardado.');
+    e.target.reset();
+  } catch (err) { showError('Error: ' + err.message); }
+}
+
+async function onDeleteTemporada(id) {
+  if (!confirm('¿Eliminar este rango de curso?')) return;
+  try {
+    await deleteDocument('temporadas', id);
+    showSuccess('Eliminado.');
   } catch (err) { showError('Error: ' + err.message); }
 }
 
@@ -729,9 +761,11 @@ let editingAbsenceId = null;
 let fichaEquipoFiltro = 'todos';
 let fichaVista = 'mensual';
 
-function rangoTemporada(temporadaStr) {
-  const config = data.temporadas.find(t => t.id === temporadaStr.replace('/', '-'));
-  if (config) return { inicio: config.fechaInicio, fin: config.fechaFin };
+function rangoTemporada(temporadaStr, curso) {
+  const porCurso = data.temporadas.find(t => t.curso === curso);
+  if (porCurso) return { inicio: porCurso.fechaInicio, fin: porCurso.fechaFin };
+  const general = data.temporadas.find(t => t.curso === 'todos');
+  if (general) return { inicio: general.fechaInicio, fin: general.fechaFin };
   const [y1, y2] = temporadaStr.split('/').map(Number);
   return { inicio: `${y1}-09-01`, fin: `${y2}-08-31` };
 }
@@ -781,7 +815,7 @@ function renderFichaDetalle() {
     if (!player) { detalle.innerHTML = ''; return; }
 
     const { inicio, fin } = fichaVista === 'general'
-      ? rangoTemporada(state.activeSeason)
+      ? rangoTemporada(state.activeSeason, player.curso)
       : primerYUltimoDiaMes(anioActual, mesActual);
     const absences = data.absences.filter(a => a.playerId === player.id && a.fecha >= inicio && a.fecha <= fin);
     const resumen = resumenJugador(inicio, fin, absences, player.curso, data.festivos);
