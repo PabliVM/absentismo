@@ -87,6 +87,13 @@ body {
   text-overflow: ellipsis;
 }
 
+#rm-header .header-subtitle {
+  color: rgba(255,255,255,.85);
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+
 #rm-header .header-right {
   margin-left: auto;
   display: flex;
@@ -153,31 +160,31 @@ body {
   position: sticky;
   top: 56px;
   z-index: 90;
-  height: 42px;
+  height: 56px;
   background: #ffffff;
   border-bottom: 1px solid #dfe1e6;
   display: flex;
   align-items: center;
   padding: 0 24px;
-  gap: 4px;
+  gap: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,.04);
   overflow-x: auto;
 }
 
 #rm-tabs .tab-btn {
-  height: 42px;
+  height: 34px;
   padding: 0 16px;
-  color: #5a6170;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 999px;
+  color: #4b5563;
+  background: #f3f4f6;
+  border: 1px solid transparent;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
 }
-#rm-tabs .tab-btn:hover  { color: #1a1d23; background: #f5f7fb; }
-#rm-tabs .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+#rm-tabs .tab-btn:hover  { background: #e8eef8; color: #1a1d23; }
+#rm-tabs .tab-btn.active { color: #ffffff; background: #2563eb; }
 
 #rm-main {
   flex: 1;
