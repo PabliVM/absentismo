@@ -638,9 +638,9 @@ let anioActual = new Date().getFullYear();
 let jugadorSeleccionado = null;
 
 function primerYUltimoDiaMes(anio, mes) {
-  const inicio = toLocalYMD(new Date(anio, mes, 1));
-  const fin    = toLocalYMD(new Date(anio, mes + 1, 0));
-  return { inicio, fin };
+  const fechaInicio = toLocalYMD(new Date(anio, mes, 1));
+  const fechaFin    = toLocalYMD(new Date(anio, mes + 1, 0));
+  return { fechaInicio, fechaFin };
 }
 
 function renderPanelInformes(container) {
@@ -689,7 +689,7 @@ function bindMesSelector(container, onChange) {
 const equiposColapsadosCalendario = new Set();
 
 function renderCalendarioGeneral(container) {
-  const { inicio, fin } = primerYUltimoDiaMes(anioActual, mesActual);
+  const { fechaInicio: inicio, fechaFin: fin } = primerYUltimoDiaMes(anioActual, mesActual);
   const fechas = rangoFechas(inicio, fin);
   const rById = reasonsById();
 
@@ -753,11 +753,11 @@ let fichaVista = 'mensual';
 
 function rangoTemporada(temporadaStr, curso) {
   const porCurso = data.temporadas.find(t => t.curso === curso);
-  if (porCurso) return { inicio: porCurso.fechaInicio, fin: porCurso.fechaFin };
+  if (porCurso) return { fechaInicio: porCurso.fechaInicio, fechaFin: porCurso.fechaFin };
   const general = data.temporadas.find(t => t.curso === 'todos');
-  if (general) return { inicio: general.fechaInicio, fin: general.fechaFin };
+  if (general) return { fechaInicio: general.fechaInicio, fechaFin: general.fechaFin };
   const [y1, y2] = temporadaStr.split('/').map(Number);
-  return { inicio: `${y1}-09-01`, fin: `${y2}-08-31` };
+  return { fechaInicio: `${y1}-09-01`, fechaFin: `${y2}-08-31` };
 }
 
 function renderFichaIndividual(container) {
@@ -804,7 +804,7 @@ function renderFichaDetalle() {
     const player = data.players.find(p => p.id === jugadorSeleccionado);
     if (!player) { detalle.innerHTML = ''; return; }
 
-    const { inicio, fin } = fichaVista === 'general'
+    const { fechaInicio: inicio, fechaFin: fin } = fichaVista === 'general'
       ? rangoTemporada(state.activeSeason, player.curso)
       : primerYUltimoDiaMes(anioActual, mesActual);
     const absences = data.absences.filter(a => a.playerId === player.id && a.fecha >= inicio && a.fecha <= fin);
