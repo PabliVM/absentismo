@@ -11,7 +11,7 @@ import { renderFooter }           from './render-footer.js';
 import { TABS, TEAMS, MESES, LOGO_PATH } from './constants.js';
 import { state }                  from './state.js';
 import { safeText, showError, showSuccess, formatDate } from './utils.js';
-import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, hoyStr, toLocalYMD } from './attendance-calculator.js';
+import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, isLectivo, hoyStr, toLocalYMD } from './attendance-calculator.js';
 
 // ── ESTADO EN MEMORIA DE COLECCIONES (cache local, sincronizado con Firestore) ──
 
@@ -81,8 +81,12 @@ function renderPanelInicio(container) {
             <div id="au-jugador-sugerencias" class="autocomplete-list hidden"></div>
           </div>
           <div class="field-group">
-            <label class="label">Fecha</label>
-            <input class="input" type="date" id="au-fecha" required value="${hoyStr()}">
+            <label class="label">Desde</label>
+            <input class="input" type="date" id="au-fecha-desde" required value="${hoyStr()}">
+          </div>
+          <div class="field-group">
+            <label class="label">Hasta (opcional — si el jugador va a estar varios días)</label>
+            <input class="input" type="date" id="au-fecha-hasta">
           </div>
           <div class="field-group">
             <label class="label">Motivo</label>
@@ -139,21 +143,32 @@ function renderPanelInicio(container) {
 async function onSubmitAusencia(e) {
   e.preventDefault();
   const playerId = document.getElementById('au-jugador-id').value;
-  const fecha    = document.getElementById('au-fecha').value;
+  const fechaDesde = document.getElementById('au-fecha-desde').value;
+  const fechaHasta = document.getElementById('au-fecha-hasta').value || fechaDesde;
   const reasonId = document.getElementById('au-motivo').value;
   const observaciones = document.getElementById('au-obs').value.trim();
 
   if (!playerId) { showError('Selecciona un jugador de la lista de sugerencias.'); return; }
-  if (isWeekend(fecha)) { showError('Esa fecha es fin de semana, no es día lectivo.'); return; }
+  if (fechaHasta < fechaDesde) { showError('"Hasta" no puede ser anterior a "Desde".'); return; }
 
-  const yaExiste = data.absences.some(a => a.playerId === playerId && a.fecha === fecha);
-  if (yaExiste) { showError('Este jugador ya tiene una ausencia registrada ese día.'); return; }
+  const player = data.players.find(p => p.id === playerId);
+  const cursoRango = rangoTemporada(state.activeSeason, player.curso);
+  const diasRango = rangoFechas(fechaDesde, fechaHasta);
+  const diasLectivosRango = diasRango.filter(f => isLectivo(f, player.curso, data.festivos, cursoRango));
+
+  if (diasLectivosRango.length === 0) { showError('Ningún día de ese rango es lectivo (fin de semana / festivo / fuera de curso).'); return; }
+
+  const yaExistentes = diasLectivosRango.filter(f => data.absences.some(a => a.playerId === playerId && a.fecha === f));
+  const aCrear = diasLectivosRango.filter(f => !yaExistentes.includes(f));
+
+  if (aCrear.length === 0) { showError('Ya había ausencia registrada en todos esos días.'); return; }
 
   try {
-    await addDocument('absences', { playerId, fecha, reasonId, observaciones });
-    showSuccess('Ausencia registrada.');
+    for (const fecha of aCrear) await addDocument('absences', { playerId, fecha, reasonId, observaciones });
+    const extra = yaExistentes.length ? ` (${yaExistentes.length} día(s) ya tenían ausencia, se han saltado)` : '';
+    showSuccess(`${aCrear.length} ausencia(s) registrada(s)${extra}.`);
     e.target.reset();
-    document.getElementById('au-fecha').value = hoyStr();
+    document.getElementById('au-fecha-desde').value = hoyStr();
     document.getElementById('au-jugador-id').value = '';
   } catch (err) {
     showError('Error al guardar: ' + err.message);
