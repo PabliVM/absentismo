@@ -39,9 +39,21 @@ export function esFestivo(dateStr, curso, festivos = []) {
 
 export function isLectivo(dateStr, curso, festivos = [], cursoRango = null) {
   if (isWeekend(dateStr)) return false;
-  if (dateStr > hoyStr()) return false; // día futuro: aún no ha ocurrido
+  if (dateStr > hoyStr()) return false; // día futuro: aún no ha ocurrido (para ESTADÍSTICAS)
   if (esFestivo(dateStr, curso, festivos)) return false;
   if (cursoRango && (dateStr < cursoRango.fechaInicio || dateStr > cursoRango.fechaFin)) return false; // fuera del curso
+  return true;
+}
+
+/**
+ * Como isLectivo pero SIN excluir días futuros — para saber si un día es
+ * válido a la hora de REGISTRAR una ausencia (puedes registrar una ausencia
+ * futura ya conocida, ej. selección nacional la semana que viene).
+ */
+export function esDiaEscolar(dateStr, curso, festivos = [], cursoRango = null) {
+  if (isWeekend(dateStr)) return false;
+  if (esFestivo(dateStr, curso, festivos)) return false;
+  if (cursoRango && (dateStr < cursoRango.fechaInicio || dateStr > cursoRango.fechaFin)) return false;
   return true;
 }
 
