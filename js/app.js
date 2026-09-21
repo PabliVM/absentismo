@@ -11,7 +11,7 @@ import { renderFooter }           from './render-footer.js';
 import { TABS, TEAMS, MESES, LOGO_PATH } from './constants.js';
 import { state }                  from './state.js';
 import { safeText, showError, showSuccess, formatDate } from './utils.js';
-import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, isLectivo, hoyStr, toLocalYMD } from './attendance-calculator.js';
+import { resumenJugador, celdaCalendario, rangoFechas, isWeekend, isLectivo, esDiaEscolar, hoyStr, toLocalYMD } from './attendance-calculator.js';
 
 // ── ESTADO EN MEMORIA DE COLECCIONES (cache local, sincronizado con Firestore) ──
 
@@ -154,7 +154,7 @@ async function onSubmitAusencia(e) {
   const player = data.players.find(p => p.id === playerId);
   const cursoRango = rangoTemporada(state.activeSeason, player.curso);
   const diasRango = rangoFechas(fechaDesde, fechaHasta);
-  const diasLectivosRango = diasRango.filter(f => isLectivo(f, player.curso, data.festivos, cursoRango));
+  const diasLectivosRango = diasRango.filter(f => esDiaEscolar(f, player.curso, data.festivos, cursoRango));
 
   if (diasLectivosRango.length === 0) { showError('Ningún día de ese rango es lectivo (fin de semana / festivo / fuera de curso).'); return; }
 
