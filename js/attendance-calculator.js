@@ -79,14 +79,17 @@ export function diasLectivos(inicio, fin, curso, festivos = [], cursoRango = nul
  * cursoRango: { fechaInicio, fechaFin } real del curso — días fuera de ahí no cuentan.
  */
 export function resumenJugador(inicio, fin, absences, curso, festivos = [], cursoRango = null) {
+  const hoy = hoyStr();
+  const ausenciasPasadas = absences.filter(a => a.fecha <= hoy);
+
   const previstas   = diasLectivos(inicio, fin, curso, festivos, cursoRango);
-  const ausencias   = absences.length;
+  const ausencias   = ausenciasPasadas.length;
   const asistencias = Math.max(previstas - ausencias, 0);
   const pctAsistencia = previstas ? +(asistencias / previstas * 100).toFixed(1) : 0;
   const pctAbsentismo = previstas ? +(ausencias   / previstas * 100).toFixed(1) : 0;
 
   const porMotivo = {};
-  for (const a of absences) porMotivo[a.reasonId] = (porMotivo[a.reasonId] || 0) + 1;
+  for (const a of ausenciasPasadas) porMotivo[a.reasonId] = (porMotivo[a.reasonId] || 0) + 1;
 
   return { previstas, asistencias, ausencias, pctAsistencia, pctAbsentismo, porMotivo };
 }
