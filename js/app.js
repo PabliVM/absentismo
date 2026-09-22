@@ -839,7 +839,10 @@ function renderFichaDetalle() {
         const motivoOptsEdit = data.reasons.map(r => `<option value="${r.id}" ${r.id === a.reasonId ? 'selected' : ''}>${safeText(r.nombre)} (${safeText(r.codigo)})</option>`).join('');
         return `
           <tr>
-            <td><input class="input" type="date" id="edit-au-fecha-${a.id}" value="${a.fecha}"></td>
+            <td>
+              <input class="input" type="date" id="edit-au-fecha-${a.id}" value="${a.fecha}" style="margin-bottom:4px">
+              <input class="input" type="date" id="edit-au-hasta-${a.id}" title="Extender hasta (opcional)" placeholder="Extender hasta...">
+            </td>
             <td><select class="select" id="edit-au-motivo-${a.id}">${motivoOptsEdit}</select></td>
             <td><input class="input" id="edit-au-obs-${a.id}" value="${safeText(a.observaciones || '')}"></td>
             <td style="white-space:nowrap">
@@ -1012,9 +1015,11 @@ async function renderMotivoChart(porMotivo, rById) {
 
 async function onSaveAbsence(id, refresh) {
   const fecha    = document.getElementById(`edit-au-fecha-${id}`).value;
+  const hasta    = document.getElementById(`edit-au-hasta-${id}`).value;
   const reasonId = document.getElementById(`edit-au-motivo-${id}`).value;
   const observaciones = document.getElementById(`edit-au-obs-${id}`).value.trim();
   if (isWeekend(fecha)) { showError('Esa fecha es fin de semana, no es día lectivo.'); return; }
+  if (hasta && hasta < fecha) { showError('"Hasta" no puede ser anterior a la fecha.'); return; }
 
   const actual = data.absences.find(a => a.id === id);
   const duplicada = data.absences.some(a => a.id !== id && a.playerId === actual.playerId && a.fecha === fecha);
@@ -1022,7 +1027,20 @@ async function onSaveAbsence(id, refresh) {
 
   try {
     await updateDocument('absences', id, { fecha, reasonId, observaciones });
-    showSuccess('Ausencia actualizada.');
+
+    let extra = '';
+    if (hasta && hasta > fecha) {
+      const player = data.players.find(p => p.id === actual.playerId);
+      const cursoRango = rangoTemporada(state.activeSeason, player.curso);
+      const diasExtra = rangoFechas(fecha, hasta)
+        .filter(f => f !== fecha)
+        .filter(f => esDiaEscolar(f, player.curso, data.festivos, cursoRango))
+        .filter(f => !data.absences.some(a => a.playerId === actual.playerId && a.fecha === f));
+      for (const f of diasExtra) await addDocument('absences', { playerId: actual.playerId, fecha: f, reasonId, observaciones });
+      if (diasExtra.length) extra = ` (+${diasExtra.length} día(s) más creado(s) hasta ${formatDate(hasta)})`;
+    }
+
+    showSuccess('Ausencia actualizada.' + extra);
     editingAbsenceId = null;
   } catch (err) { showError('Error: ' + err.message); }
 }
