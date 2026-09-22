@@ -850,10 +850,13 @@ function renderFichaDetalle() {
         `;
       }
       const r = rById[a.reasonId];
+      const esFutura = a.fecha > hoyStr();
       return `
-        <tr>
+        <tr style="${esFutura ? 'opacity:.6' : ''}">
           <td>${formatDate(a.fecha)}</td>
-          <td><span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}</span> ${r ? safeText(r.nombre) : ''}</td>
+          <td><span class="motivo-pill" style="background:${r ? r.color : '#6b7280'}">${r ? r.codigo : '?'}</span> ${r ? safeText(r.nombre) : ''}
+            ${esFutura ? '<span class="badge badge-gray" style="margin-left:6px">Futura — no cuenta aún</span>' : ''}
+          </td>
           <td>${safeText(a.observaciones || '')}</td>
           <td class="no-print" style="white-space:nowrap">
             <button class="btn btn-ghost btn-icon" data-edit-absence="${a.id}" title="Editar">✏️</button>
